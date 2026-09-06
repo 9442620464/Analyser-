@@ -1,0 +1,1368 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>StoreBuddy AI — Command Center</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<style>
+:root{
+  --paper:#F0F3F0; --paper-2:#E6EAE5; --ink:#16211D; --ink-2:#3B463F;
+  --signal:#1F8A70; --signal-light:#DCEFE8; --signal-dark:#166A55;
+  --alert:#E2572B; --alert-light:#FBE4DA;
+  --warning:#D9A21B; --warning-light:#FBF1D6;
+  --google:#2A6B9E; --google-light:#DCE5F0;
+  --meta:#6B4FA0; --meta-light:#E9E2F3;
+  --line:#D4D9D2; --white:#FFFFFF;
+  --shadow:0 2px 8px rgba(22,33,29,0.06);
+  --radius:10px;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'IBM Plex Sans',sans-serif;background:var(--paper);color:var(--ink);display:flex;min-height:100vh;font-size:14px;line-height:1.5;}
+.mono{font-family:'IBM Plex Mono',monospace;}
+::selection{background:var(--signal-light);}
+a{color:inherit;}
+
+/* SIDEBAR */
+.sidebar{width:230px;background:var(--ink);color:var(--paper);display:flex;flex-direction:column;flex-shrink:0;padding:20px 0;position:sticky;top:0;height:100vh;overflow-y:auto;z-index:30;}
+.brand{display:flex;align-items:center;gap:10px;padding:0 20px 24px 20px;border-bottom:1px solid rgba(240,243,240,0.10);margin-bottom:16px;}
+.brand-dot{width:10px;height:10px;border-radius:50%;background:var(--signal);flex-shrink:0;box-shadow:0 0 0 3px rgba(31,138,112,0.25);}
+.brand-name{font-family:'IBM Plex Mono',monospace;font-weight:600;font-size:14px;letter-spacing:0.02em;}
+.brand-sub{font-size:11px;color:rgba(240,243,240,0.45);margin-top:2px;}
+nav{display:flex;flex-direction:column;gap:2px;padding:0 12px;}
+.nav-group-label{font-size:10px;text-transform:uppercase;letter-spacing:0.06em;color:rgba(240,243,240,0.32);padding:16px 12px 6px 12px;font-weight:600;}
+.nav-group-label:first-child{padding-top:0;}
+.nav-item{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:6px;color:rgba(240,243,240,0.60);cursor:pointer;font-size:13px;font-weight:500;border:none;background:none;text-align:left;width:100%;transition:background 0.15s,color 0.15s;font-family:'IBM Plex Sans',sans-serif;}
+.nav-item:hover{background:rgba(240,243,240,0.06);color:var(--paper);}
+.nav-item.active{background:var(--signal);color:var(--white);}
+.nav-icon{width:18px;height:18px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:15px;}
+.nav-badge{margin-left:auto;font-size:10px;background:var(--alert);color:#fff;padding:1px 7px;border-radius:10px;font-weight:600;}
+.nav-badge.warn{background:var(--warning);color:#4A3400;}
+.sidebar-foot{margin-top:16px;padding:14px 20px 0 20px;border-top:1px solid rgba(240,243,240,0.08);font-size:11px;color:rgba(240,243,240,0.40);}
+
+/* MAIN */
+.main{flex:1;display:flex;flex-direction:column;min-width:0;background:var(--paper);}
+.topbar{display:flex;align-items:center;justify-content:space-between;padding:12px 32px;border-bottom:1px solid var(--line);background:var(--white);position:sticky;top:0;z-index:20;flex-wrap:wrap;gap:8px;}
+.ticker{display:flex;align-items:center;gap:18px;flex-wrap:wrap;}
+.ticker-item{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--ink-2);font-weight:500;}
+.dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+.dot.on{background:var(--signal);box-shadow:0 0 0 3px var(--signal-light);animation:pulse 2s infinite;}
+.dot.off{background:#B7BDB4;}
+.dot.err{background:var(--alert);box-shadow:0 0 0 3px var(--alert-light);}
+.dot.warn{background:var(--warning);box-shadow:0 0 0 3px var(--warning-light);}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:0.5;}}
+.topbar-right{display:flex;align-items:center;gap:10px;}
+.plan-pill{font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:500;background:var(--paper-2);padding:5px 14px;border-radius:20px;color:var(--ink-2);}
+.range-pill{font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:600;background:var(--ink);color:var(--paper);padding:5px 14px;border-radius:20px;}
+
+.page{padding:28px 32px 60px 32px;display:none;max-width:1440px;margin:0 auto;width:100%;}
+.page.active{display:block;}
+.page-header{display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:12px;}
+.page-header h1{font-family:'IBM Plex Mono',monospace;font-size:22px;font-weight:600;margin-bottom:2px;}
+.page-header .page-sub{font-size:13px;color:var(--ink-2);max-width:640px;}
+.page-header-actions{display:flex;gap:8px;align-items:center;}
+
+/* CARDS */
+.card{background:var(--white);border:1px solid var(--line);border-radius:var(--radius);padding:20px;box-shadow:var(--shadow);transition:border-color 0.15s;}
+.card:hover{border-color:#C5CBC2;}
+.card-highlight{border-color:var(--signal);}
+.card-highlight:hover{border-color:var(--signal-dark);}
+.card-pad-sm{padding:16px;}
+
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+.grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;}
+.grid-4{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;}
+.grid-5{display:grid;grid-template-columns:repeat(5,1fr);gap:16px;}
+.grid-6{display:grid;grid-template-columns:repeat(6,1fr);gap:16px;}
+.col-main-side{display:grid;grid-template-columns:2fr 1fr;gap:16px;}
+.col-side-main{display:grid;grid-template-columns:1fr 2fr;gap:16px;}
+.stack{display:flex;flex-direction:column;gap:16px;}
+.gap-8{gap:8px;} .gap-12{gap:12px;}
+.mt-4{margin-top:4px;} .mt-8{margin-top:8px;} .mt-12{margin-top:12px;} .mt-16{margin-top:16px;} .mt-24{margin-top:24px;}
+.mb-8{margin-bottom:8px;} .mb-16{margin-bottom:16px;}
+
+.stat-label{font-size:12px;color:var(--ink-2);margin-bottom:4px;font-weight:500;display:flex;align-items:center;gap:6px;}
+.stat-value{font-family:'IBM Plex Mono',monospace;font-size:26px;font-weight:600;line-height:1.2;}
+.stat-value.sm{font-size:20px;}
+.stat-delta{font-size:12px;margin-top:4px;font-weight:500;display:flex;align-items:center;gap:4px;}
+.stat-delta.up{color:var(--signal-dark);} .stat-delta.down{color:#A32D2D;} .stat-delta.neutral{color:var(--ink-2);}
+.stat-icon{font-size:16px;}
+.stat-row{display:flex;align-items:flex-end;justify-content:space-between;gap:10px;}
+.stat-context{font-size:11px;color:#7C867E;margin-top:6px;line-height:1.5;}
+.stat-trend{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600;}
+.stat-trend.up{background:var(--signal-light);color:var(--signal-dark);}
+.stat-trend.down{background:var(--alert-light);color:#A32D2D;}
+
+.section-title{font-size:13px;font-weight:600;margin-bottom:4px;letter-spacing:0.01em;color:var(--ink);display:flex;align-items:center;gap:8px;}
+.section-title .badge{font-size:10px;background:var(--signal-light);color:var(--signal-dark);padding:1px 8px;border-radius:10px;font-weight:500;}
+.section-note{font-size:12px;color:var(--ink-2);margin-bottom:14px;}
+.section-head{margin-bottom:14px;display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;}
+.source-tag{font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:600;padding:3px 9px;border-radius:20px;letter-spacing:0.02em;white-space:nowrap;}
+.source-tag.wc{background:var(--signal-light);color:var(--signal-dark);}
+.source-tag.ga{background:var(--warning-light);color:#8A5A0B;}
+.source-tag.gads{background:var(--google-light);color:var(--google);}
+.source-tag.meta{background:var(--meta-light);color:var(--meta);}
+
+/* TABLES */
+.table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;}
+table{width:100%;border-collapse:collapse;font-size:13px;}
+th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:0.04em;color:var(--ink-2);padding:0 12px 10px 0;border-bottom:2px solid var(--line);font-weight:600;white-space:nowrap;}
+th:last-child,td:last-child{padding-right:0;}
+td{padding:12px 12px 12px 0;border-bottom:1px solid var(--line);vertical-align:middle;}
+tr:last-child td{border-bottom:none;}
+.table-compact td{padding:8px 12px 8px 0;}
+td.num,th.num{text-align:right;}
+.row-title{font-weight:600;font-size:13px;}
+.row-sub{font-size:11px;color:var(--ink-2);margin-top:2px;}
+.tag{font-size:11px;padding:3px 10px;border-radius:4px;background:var(--paper-2);font-family:'IBM Plex Mono',monospace;font-weight:500;display:inline-block;white-space:nowrap;}
+.tag-green{background:var(--signal-light);color:var(--signal-dark);}
+.tag-red{background:var(--alert-light);color:#A32D2D;}
+.tag-yellow{background:var(--warning-light);color:#8A5A0B;}
+.tag-blue{background:var(--google-light);color:#1A3A5C;}
+.tag-purple{background:var(--meta-light);color:var(--meta);}
+.tag-gray{background:var(--paper-2);color:var(--ink-2);}
+
+.progress-bar{height:6px;background:var(--paper-2);border-radius:3px;overflow:hidden;margin-top:6px;min-width:60px;}
+.progress-fill{height:100%;border-radius:3px;transition:width 0.4s;}
+.progress-fill.green{background:var(--signal);}
+.progress-fill.red{background:var(--alert);}
+.progress-fill.yellow{background:var(--warning);}
+.progress-fill.blue{background:var(--google);}
+.progress-fill.purple{background:var(--meta);}
+
+.chart-box{position:relative;height:220px;margin-top:4px;}
+.chart-box-sm{height:150px;}
+.chart-box-lg{height:280px;}
+
+/* SPARKLINE */
+.spark{width:88px;height:32px;flex-shrink:0;}
+
+/* LEGEND LIST (channel breakdowns) */
+.legend-list{display:flex;flex-direction:column;gap:12px;}
+.legend-row{display:flex;align-items:center;gap:10px;}
+.legend-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0;}
+.legend-label{font-size:12.5px;font-weight:500;flex:1;min-width:0;}
+.legend-sub{font-size:11px;color:var(--ink-2);}
+.legend-val{font-family:'IBM Plex Mono',monospace;font-size:12.5px;font-weight:600;white-space:nowrap;}
+.legend-bar-track{height:5px;background:var(--paper-2);border-radius:3px;overflow:hidden;margin-top:5px;}
+.legend-bar-fill{height:100%;border-radius:3px;}
+
+/* ALERT / INSIGHT ROWS */
+.alert-row{display:flex;align-items:flex-start;gap:10px;padding:12px 0;border-bottom:1px solid var(--line);}
+.alert-row:last-child{border-bottom:none;}
+.alert-dot{width:8px;height:8px;border-radius:50%;margin-top:5px;flex-shrink:0;}
+.alert-dot.red{background:var(--alert);} .alert-dot.green{background:var(--signal);}
+.alert-dot.yellow{background:var(--warning);} .alert-dot.blue{background:var(--google);}
+.alert-text{font-size:13px;line-height:1.5;}
+.alert-time{font-size:11px;color:var(--ink-2);margin-top:2px;}
+
+.insight-card{border:1px solid var(--line);border-left:3px solid var(--line);border-radius:var(--radius);padding:16px 18px;background:var(--white);box-shadow:var(--shadow);}
+.insight-card.p-high{border-left-color:var(--alert);}
+.insight-card.p-medium{border-left-color:var(--warning);}
+.insight-card.p-low{border-left-color:var(--google);}
+.insight-top{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;}
+.insight-tags{display:flex;gap:6px;align-items:center;flex-wrap:wrap;}
+.prio{font-family:'IBM Plex Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:0.04em;padding:3px 9px;border-radius:4px;font-weight:600;}
+.prio.high{background:var(--alert-light);color:#A32D2D;}
+.prio.medium{background:var(--warning-light);color:#8A5A0B;}
+.prio.low{background:var(--google-light);color:var(--google);}
+.insight-title{font-size:14px;font-weight:600;margin:10px 0 4px 0;}
+.insight-text{font-size:13px;line-height:1.6;color:var(--ink-2);}
+.insight-foot{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-top:12px;}
+.insight-metric{font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--ink);background:var(--paper-2);padding:4px 10px;border-radius:6px;}
+
+/* BUTTONS */
+.btn{font-family:'IBM Plex Sans',sans-serif;font-size:13px;font-weight:500;padding:8px 16px;border-radius:6px;border:1px solid var(--line);background:var(--white);color:var(--ink);cursor:pointer;transition:all 0.15s;display:inline-flex;align-items:center;gap:6px;white-space:nowrap;}
+.btn-primary{background:var(--signal);color:var(--white);border-color:var(--signal);}
+.btn-primary:hover{opacity:0.9;border-color:var(--signal-dark);}
+.btn-outline{background:transparent;border-color:var(--line);}
+.btn-outline:hover{border-color:var(--ink-2);}
+.btn-sm{font-size:11px;padding:6px 12px;}
+.btn-xs{font-size:10px;padding:3px 9px;border-radius:4px;}
+.btn-danger{background:var(--alert);color:#fff;border-color:var(--alert);}
+.btn-danger:hover{opacity:0.85;}
+.btn-ghost{background:transparent;border-color:transparent;}
+.btn-ghost:hover{background:var(--paper-2);}
+
+/* TOGGLES / SETTINGS */
+.toggle-row{display:flex;align-items:center;justify-content:space-between;padding:14px 0;border-bottom:1px solid var(--line);gap:16px;}
+.toggle-row:last-child{border-bottom:none;}
+.toggle-name{font-size:13px;font-weight:500;}
+.toggle-desc{font-size:12px;color:var(--ink-2);margin-top:2px;}
+.toggle-right{display:flex;align-items:center;gap:12px;flex-shrink:0;}
+.threshold-input{width:56px;padding:4px 6px;border:1px solid var(--line);border-radius:4px;font-size:12px;font-family:'IBM Plex Mono',monospace;text-align:center;}
+.switch{position:relative;width:38px;height:20px;background:var(--line);border-radius:20px;cursor:pointer;transition:background 0.15s;flex-shrink:0;}
+.switch.on{background:var(--signal);}
+.switch::after{content:'';position:absolute;top:2px;left:2px;width:16px;height:16px;background:var(--white);border-radius:50%;transition:transform 0.15s;}
+.switch.on::after{transform:translateX(18px);}
+
+.status-badge{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:500;padding:4px 12px;border-radius:20px;}
+.status-badge.connected{background:var(--signal-light);color:var(--signal-dark);}
+.status-badge.pending{background:var(--warning-light);color:#8A5A0B;}
+.status-badge.error{background:var(--alert-light);color:#A32D2D;}
+.status-badge .dot{width:6px;height:6px;box-shadow:none !important;}
+
+.source-row{display:flex;align-items:center;gap:14px;padding:16px 0;border-bottom:1px solid var(--line);flex-wrap:wrap;}
+.source-row:last-child{border-bottom:none;}
+.source-icon{width:38px;height:38px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-family:'IBM Plex Mono',monospace;font-weight:700;font-size:13px;flex-shrink:0;color:#fff;}
+.source-icon.wc{background:var(--signal);}
+.source-icon.ga{background:var(--warning);color:#4A3400;}
+.source-icon.gads{background:var(--google);}
+.source-icon.meta{background:var(--meta);}
+.source-meta{flex:1;min-width:180px;}
+.source-meta .name{font-weight:600;font-size:13.5px;}
+.source-meta .sync{font-size:11.5px;color:var(--ink-2);margin-top:2px;}
+
+/* FUNNEL */
+.funnel{display:flex;flex-direction:column;gap:10px;}
+.funnel-step{display:grid;grid-template-columns:150px 1fr 90px 70px;align-items:center;gap:12px;}
+.funnel-label{font-size:12.5px;font-weight:500;}
+.funnel-track{height:26px;background:var(--paper-2);border-radius:5px;overflow:hidden;position:relative;}
+.funnel-fill{height:100%;background:linear-gradient(90deg,var(--signal-dark),var(--signal));border-radius:5px;display:flex;align-items:center;padding-left:10px;}
+.funnel-count{font-family:'IBM Plex Mono',monospace;font-size:12px;font-weight:600;color:#fff;}
+.funnel-pct{font-family:'IBM Plex Mono',monospace;font-size:12px;text-align:right;color:var(--ink-2);}
+.funnel-drop{font-size:11px;color:#A32D2D;text-align:right;}
+
+/* INFO NOTE */
+.info-note{background:var(--paper-2);border-radius:8px;padding:10px 14px;font-size:12px;color:var(--ink-2);line-height:1.6;margin-top:12px;}
+.info-note b{color:var(--ink);}
+
+/* RESPONSIVE */
+@media (max-width:1180px){
+  .grid-4{grid-template-columns:1fr 1fr;}
+  .grid-5{grid-template-columns:1fr 1fr 1fr;}
+  .grid-6{grid-template-columns:1fr 1fr 1fr;}
+  .col-main-side,.col-side-main{grid-template-columns:1fr;}
+}
+@media (max-width:860px){
+  body{flex-direction:column;}
+  .sidebar{width:100%;height:auto;position:relative;flex-direction:row;overflow-x:auto;padding:12px;}
+  .brand{border-bottom:none;padding:0 12px 0 0;margin-bottom:0;border-right:1px solid rgba(240,243,240,0.1);}
+  nav{flex-direction:row;padding:0 0 0 12px;}
+  .nav-group-label{display:none;}
+  .sidebar-foot{display:none;}
+  .grid-2,.grid-3,.grid-4,.grid-5,.grid-6{grid-template-columns:1fr 1fr;}
+  .page{padding:20px 16px 40px 16px;}
+  .funnel-step{grid-template-columns:100px 1fr 60px;}
+  .funnel-pct{display:none;}
+}
+</style>
+</head>
+<body>
+<aside class="sidebar">
+  <div class="brand">
+    <div class="brand-dot"></div>
+    <div>
+      <div class="brand-name">STOREBUDDY AI</div>
+      <div class="brand-sub">Solstice Outdoor Co.</div>
+    </div>
+  </div>
+  <nav>
+    <div class="nav-group-label">Reports</div>
+    <button class="nav-item active" data-page="overview"><span class="nav-icon">◆</span> Overview</button>
+    <button class="nav-item" data-page="sales"><span class="nav-icon">$</span> Sales · WooCommerce</button>
+    <button class="nav-item" data-page="traffic"><span class="nav-icon">◔</span> Traffic · GA4</button>
+    <button class="nav-item" data-page="ads"><span class="nav-icon">▲</span> Ads · Google &amp; Meta</button>
+    <button class="nav-item" data-page="products"><span class="nav-icon">▦</span> Products &amp; Stock</button>
+    <button class="nav-item" data-page="customers"><span class="nav-icon">◒</span> Customers</button>
+    <div class="nav-group-label">Act on it</div>
+    <button class="nav-item" data-page="insights"><span class="nav-icon">!</span> Insights &amp; Alerts <span class="nav-badge" id="insightNavBadge">6</span></button>
+    <button class="nav-item" data-page="settings"><span class="nav-icon">⚙</span> Connections</button>
+  </nav>
+  <div class="sidebar-foot mono">Last synced 4 min ago<br>Plan: Pro · Store #A-1042</div>
+</aside>
+
+<main class="main">
+  <div class="topbar">
+    <div class="ticker">
+      <div class="ticker-item"><span class="dot on"></span>WooCommerce</div>
+      <div class="ticker-item"><span class="dot on"></span>Google Analytics 4</div>
+      <div class="ticker-item"><span class="dot on"></span>Google Ads</div>
+      <div class="ticker-item"><span class="dot warn"></span>Meta Ads · sync delayed 2h</div>
+    </div>
+    <div class="topbar-right">
+      <div class="range-pill">Last 30 days</div>
+      <div class="plan-pill mono">Aug 2 – Aug 31, 2026</div>
+    </div>
+  </div>
+  <!-- ============ OVERVIEW ============ -->
+  <section class="page active" id="page-overview">
+    <div class="page-header">
+      <div>
+        <h1>Overview</h1>
+        <div class="page-sub">Everything that moved the needle this month — blended across WooCommerce, GA4, Google Ads and Meta Ads.</div>
+      </div>
+      <div class="page-header-actions">
+        <button class="btn btn-outline btn-sm">↓ Export PDF</button>
+        <button class="btn btn-primary btn-sm">+ Ask AI about this data</button>
+      </div>
+    </div>
+
+    <div class="grid-4 mb-16">
+      <div class="card">
+        <div class="stat-row">
+          <div>
+            <div class="stat-label">Revenue <span class="source-tag wc">WC</span></div>
+            <div class="stat-value">$142,850</div>
+          </div>
+          <svg class="spark" id="spk-revenue" viewBox="0 0 88 32"></svg>
+        </div>
+        <div class="stat-delta up">▲ 18.4% vs. prior 30 days</div>
+        <div class="stat-context">Money collected from completed orders, before refunds and ad costs.</div>
+      </div>
+      <div class="card card-highlight">
+        <div class="stat-row">
+          <div>
+            <div class="stat-label">Profit after ad spend <span class="source-tag wc">WC</span></div>
+            <div class="stat-value">$58,927</div>
+          </div>
+          <svg class="spark" id="spk-profit" viewBox="0 0 88 32"></svg>
+        </div>
+        <div class="stat-delta up">▲ 9.7% vs. prior 30 days</div>
+        <div class="stat-context">Revenue minus est. product cost (55% margin) and $19,640 in ad spend.</div>
+      </div>
+      <div class="card">
+        <div class="stat-row">
+          <div>
+            <div class="stat-label">Blended ROAS <span class="source-tag gads">GADS</span><span class="source-tag meta">META</span></div>
+            <div class="stat-value">3.22x</div>
+          </div>
+          <svg class="spark" id="spk-roas" viewBox="0 0 88 32"></svg>
+        </div>
+        <div class="stat-delta down">▼ 0.18x vs. prior 30 days</div>
+        <div class="stat-context">Every $1 spent on Google + Meta ads returned $3.22 in tracked revenue. Breakeven is ~1.82x.</div>
+      </div>
+      <div class="card">
+        <div class="stat-row">
+          <div>
+            <div class="stat-label">Conversion rate <span class="source-tag ga">GA4</span></div>
+            <div class="stat-value">1.88%</div>
+          </div>
+          <svg class="spark" id="spk-cvr" viewBox="0 0 88 32"></svg>
+        </div>
+        <div class="stat-delta up">▲ 0.15pp vs. prior 30 days</div>
+        <div class="stat-context">Share of site visitors who completed a purchase. Store average benchmark: 1.5–2.2%.</div>
+      </div>
+    </div>
+
+    <div class="grid-4 mb-16">
+      <div class="card">
+        <div class="stat-label">Orders <span class="source-tag wc">WC</span></div>
+        <div class="stat-value sm">1,284</div>
+        <div class="stat-delta up">▲ 12.1%</div>
+        <div class="stat-context">1,102 completed · 84 processing · 27 refunded.</div>
+      </div>
+      <div class="card">
+        <div class="stat-label">Avg. order value <span class="source-tag wc">WC</span></div>
+        <div class="stat-value sm">$111.30</div>
+        <div class="stat-delta up">▲ $5.90</div>
+        <div class="stat-context">Returning customers spend $37 more per order than new ones.</div>
+      </div>
+      <div class="card">
+        <div class="stat-label">Sessions <span class="source-tag ga">GA4</span></div>
+        <div class="stat-value sm">68,420</div>
+        <div class="stat-delta up">▲ 9.2%</div>
+        <div class="stat-context">58% mobile · 36% desktop · 6% tablet.</div>
+      </div>
+      <div class="card">
+        <div class="stat-label">Ad spend <span class="source-tag gads">GADS</span><span class="source-tag meta">META</span></div>
+        <div class="stat-value sm">$19,640</div>
+        <div class="stat-delta down">▲ 22.0%</div>
+        <div class="stat-context">$9,840 Google Ads · $9,800 Meta Ads.</div>
+      </div>
+    </div>
+
+    <div class="col-main-side mb-16">
+      <div class="card">
+        <div class="section-head">
+          <div>
+            <div class="section-title">Revenue vs. ad spend, daily</div>
+            <div class="section-note">Bars show what you spent on ads each day; the line shows total store revenue. A gap between them is organic revenue still coming in.</div>
+          </div>
+        </div>
+        <div class="chart-box chart-box-lg"><canvas id="chartRevenueSpend"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="section-title">Revenue by channel</div>
+        <div class="section-note">Which traffic source gets the credit for the sale, based on last-click attribution.</div>
+        <div class="legend-list" id="legendChannelRevenue"></div>
+        <div class="info-note"><b>Read this as:</b> organic search and email are free traffic. Paid social + paid search cost $19,640 to produce $63,300 — the rest of your revenue came at no direct ad cost.</div>
+      </div>
+    </div>
+
+    <div class="col-main-side mb-16">
+      <div class="card">
+        <div class="section-head">
+          <div class="section-title">Recent orders</div>
+          <button class="btn btn-ghost btn-sm" data-goto="sales">View all orders →</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Order</th><th>Customer</th><th>Items</th><th class="num">Total</th><th>Channel</th><th>Status</th></tr></thead>
+            <tbody>
+              <tr><td class="mono">#10482</td><td>R. Nakamura</td><td>Summit 3‑Season Tent</td><td class="num mono">$233.10</td><td><span class="tag tag-purple">Meta Ads</span></td><td><span class="tag tag-green">Completed</span></td></tr>
+              <tr><td class="mono">#10481</td><td>J. Alvarez</td><td>Trekking Poles, Base Layer</td><td class="num mono">$78.40</td><td><span class="tag tag-gray">Direct</span></td><td><span class="tag tag-green">Completed</span></td></tr>
+              <tr><td class="mono">#10480</td><td>M. Okafor</td><td>Rain Jacket</td><td class="num mono">$169.00</td><td><span class="tag tag-blue">Google Ads</span></td><td><span class="tag tag-yellow">Processing</span></td></tr>
+              <tr><td class="mono">#10479</td><td>S. Bianchi</td><td>Water Bottle ×2, Poles</td><td class="num mono">$61.20</td><td><span class="tag tag-gray">Organic search</span></td><td><span class="tag tag-green">Completed</span></td></tr>
+              <tr><td class="mono">#10478</td><td>A. Kowalski</td><td>Alpine 40L Backpack</td><td class="num mono">$189.00</td><td><span class="tag tag-purple">Meta Ads</span></td><td><span class="tag tag-red">Refunded</span></td></tr>
+              <tr><td class="mono">#10477</td><td>T. Nguyen</td><td>Base Layer ×3</td><td class="num mono">$117.00</td><td><span class="tag tag-gray">Email</span></td><td><span class="tag tag-green">Completed</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="card">
+        <div class="section-head">
+          <div class="section-title">Top 3 things to act on</div>
+          <button class="btn btn-ghost btn-sm" data-goto="insights">All insights →</button>
+        </div>
+        <div class="stack" id="overviewInsights"></div>
+      </div>
+    </div>
+  </section>
+  <!-- ============ SALES / WOOCOMMERCE ============ -->
+  <section class="page" id="page-sales">
+    <div class="page-header">
+      <div>
+        <h1>Sales <span class="source-tag wc">WooCommerce</span></h1>
+        <div class="page-sub">Orders, revenue, discounts and payment behavior pulled straight from your store.</div>
+      </div>
+      <div class="page-header-actions">
+        <button class="btn btn-outline btn-sm">↓ Export CSV</button>
+      </div>
+    </div>
+
+    <div class="grid-4 mb-16">
+      <div class="card">
+        <div class="stat-label">Net revenue</div>
+        <div class="stat-value">$142,850</div>
+        <div class="stat-delta up">▲ 18.4%</div>
+        <div class="stat-context">After $3,120 in refunds. Gross was $145,970.</div>
+      </div>
+      <div class="card">
+        <div class="stat-label">Orders placed</div>
+        <div class="stat-value">1,284</div>
+        <div class="stat-delta up">▲ 12.1%</div>
+        <div class="stat-context">42.8 orders/day on average.</div>
+      </div>
+      <div class="card">
+        <div class="stat-label">Cart abandonment</div>
+        <div class="stat-value">68.4%</div>
+        <div class="stat-delta up" style="color:var(--signal-dark)">▼ 1.9pp (better)</div>
+        <div class="stat-context">3,780 checkouts started, 1,284 completed. Industry average is ~70%.</div>
+      </div>
+      <div class="card">
+        <div class="stat-label">Refund rate</div>
+        <div class="stat-value">2.1%</div>
+        <div class="stat-delta neutral">→ flat</div>
+        <div class="stat-context">27 of 1,284 orders refunded, mostly Rain Jacket (sizing).</div>
+      </div>
+    </div>
+
+    <div class="col-main-side mb-16">
+      <div class="card">
+        <div class="section-title">Revenue &amp; orders, daily</div>
+        <div class="section-note">Left axis: revenue ($). Right axis: number of orders. Use this to spot whether revenue is growing from more orders or bigger baskets.</div>
+        <div class="chart-box chart-box-lg"><canvas id="chartSalesTrend"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="section-title">Order status funnel</div>
+        <div class="section-note">Where your 1,284 orders ended up this month.</div>
+        <div class="funnel mt-16">
+          <div class="funnel-step"><div class="funnel-label">Completed</div><div class="funnel-track"><div class="funnel-fill" style="width:100%;background:linear-gradient(90deg,var(--signal-dark),var(--signal));"><span class="funnel-count">1,102</span></div></div><div class="funnel-pct">85.8%</div></div>
+          <div class="funnel-step"><div class="funnel-label">Processing</div><div class="funnel-track"><div class="funnel-fill" style="width:36%;background:linear-gradient(90deg,var(--google),#4f8fbf);"><span class="funnel-count">84</span></div></div><div class="funnel-pct">6.5%</div></div>
+          <div class="funnel-step"><div class="funnel-label">Refunded</div><div class="funnel-track"><div class="funnel-fill" style="width:22%;background:linear-gradient(90deg,#A32D2D,var(--alert));"><span class="funnel-count">27</span></div></div><div class="funnel-pct">2.1%</div></div>
+          <div class="funnel-step"><div class="funnel-label">On hold</div><div class="funnel-track"><div class="funnel-fill" style="width:18%;background:linear-gradient(90deg,#8A5A0B,var(--warning));"><span class="funnel-count">22</span></div></div><div class="funnel-pct">1.7%</div></div>
+          <div class="funnel-step"><div class="funnel-label">Cancelled / failed</div><div class="funnel-track"><div class="funnel-fill" style="width:30%;background:linear-gradient(90deg,#7C867E,#A6ADA3);"><span class="funnel-count">49</span></div></div><div class="funnel-pct">3.8%</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid-2 mb-16">
+      <div class="card">
+        <div class="section-title">Revenue by category</div>
+        <div class="section-note">Which product categories are actually paying the bills.</div>
+        <div class="chart-box"><canvas id="chartCategoryRevenue"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="section-title">Payment methods</div>
+        <div class="section-note">How customers are paying — useful for negotiating processor fees.</div>
+        <div class="chart-box"><canvas id="chartPaymentMethods"></canvas></div>
+      </div>
+    </div>
+
+    <div class="card mb-16">
+      <div class="section-head">
+        <div>
+          <div class="section-title">Coupon performance</div>
+          <div class="section-note">What each active discount code actually cost you vs. the revenue it drove.</div>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Code</th><th>Status</th><th class="num">Uses</th><th class="num">Revenue driven</th><th class="num">Discount given</th><th class="num">Avg. order</th><th>Note</th></tr></thead>
+          <tbody>
+            <tr><td class="mono row-title">WELCOME10</td><td><span class="tag tag-green">Active</span></td><td class="num mono">214</td><td class="num mono">$19,860</td><td class="num mono">$2,340</td><td class="num mono">$92.80</td><td class="row-sub">First-order code — brings new customers in at a low discount cost.</td></tr>
+            <tr><td class="mono row-title">SUMMER25</td><td><span class="tag tag-gray">Expired Aug 15</span></td><td class="num mono">380</td><td class="num mono">$31,200</td><td class="num mono">$7,020</td><td class="num mono">$82.10</td><td class="row-sub">Biggest discount cost this month — consider a smaller % next time.</td></tr>
+            <tr><td class="mono row-title">FREESHIP50</td><td><span class="tag tag-green">Active</span></td><td class="num mono">96</td><td class="num mono">$12,440</td><td class="num mono">$960</td><td class="num mono">$129.60</td><td class="row-sub">Only applies over $50 — pushes basket size up nicely.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="section-head">
+        <div>
+          <div class="section-title">New vs. returning customer revenue</div>
+          <div class="section-note">Same traffic, very different spend habits — worth treating them differently in marketing.</div>
+        </div>
+      </div>
+      <div class="grid-2">
+        <div>
+          <div class="stat-label">New customers</div>
+          <div class="stat-value sm">$79,200 <span style="font-size:12px;font-weight:500;color:var(--ink-2)">· 812 orders</span></div>
+          <div class="progress-bar"><div class="progress-fill blue" style="width:55%"></div></div>
+          <div class="stat-context">55% of revenue · AOV $97.53</div>
+        </div>
+        <div>
+          <div class="stat-label">Returning customers</div>
+          <div class="stat-value sm">$63,650 <span style="font-size:12px;font-weight:500;color:var(--ink-2)">· 472 orders</span></div>
+          <div class="progress-bar"><div class="progress-fill green" style="width:45%"></div></div>
+          <div class="stat-context">45% of revenue · AOV $134.85 (+38% over new)</div>
+        </div>
+      </div>
+    </div>
+  </section>
+  <!-- ============ TRAFFIC / GA4 ============ -->
+  <section class="page" id="page-traffic">
+    <div class="page-header">
+      <div>
+        <h1>Traffic <span class="source-tag ga">Google Analytics 4</span></h1>
+        <div class="page-sub">Where visitors come from, what they do, and where they give up before buying.</div>
+      </div>
+      <div class="page-header-actions">
+        <button class="btn btn-outline btn-sm">↓ Export CSV</button>
+      </div>
+    </div>
+
+    <div class="grid-4 mb-16">
+      <div class="card">
+        <div class="stat-label">Sessions</div>
+        <div class="stat-value">68,420</div>
+        <div class="stat-delta up">▲ 9.2%</div>
+        <div class="stat-context">A session is one visit — one person can have several.</div>
+      </div>
+      <div class="card">
+        <div class="stat-label">Unique visitors</div>
+        <div class="stat-value">51,960</div>
+        <div class="stat-delta up">▲ 7.8%</div>
+        <div class="stat-context">1.32 sessions per visitor on average.</div>
+      </div>
+      <div class="card">
+        <div class="stat-label">Bounce rate</div>
+        <div class="stat-value">47.6%</div>
+        <div class="stat-delta up" style="color:var(--signal-dark)">▼ 2.1pp (better)</div>
+        <div class="stat-context">Share of visits that left without any interaction.</div>
+      </div>
+      <div class="card">
+        <div class="stat-label">Avg. session length</div>
+        <div class="stat-value">2m 04s</div>
+        <div class="stat-delta up">▲ 11s</div>
+        <div class="stat-context">Longer sessions on tent &amp; jacket product pages pull this up.</div>
+      </div>
+    </div>
+
+    <div class="col-main-side mb-16">
+      <div class="card">
+        <div class="section-title">Sessions, new vs. returning visitors</div>
+        <div class="section-note">Returning visitors convert almost 3× better — a growing green share is a healthy sign.</div>
+        <div class="chart-box chart-box-lg"><canvas id="chartSessionsTrend"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="section-title">Traffic by source</div>
+        <div class="section-note">Where the 68,420 sessions actually came from.</div>
+        <div class="chart-box chart-box-sm"><canvas id="chartTrafficSource"></canvas></div>
+        <div class="legend-list mt-16" id="legendTrafficSource"></div>
+      </div>
+    </div>
+
+    <div class="card mb-16">
+      <div class="section-title">Purchase funnel</div>
+      <div class="section-note">Every visitor's path from landing on your site to buying. The steepest drop tells you exactly where to focus.</div>
+      <div class="funnel mt-16">
+        <div class="funnel-step"><div class="funnel-label">Sessions</div><div class="funnel-track"><div class="funnel-fill" style="width:100%"><span class="funnel-count">68,420</span></div></div><div class="funnel-pct">100%</div><div class="funnel-drop"></div></div>
+        <div class="funnel-step"><div class="funnel-label">Viewed a product</div><div class="funnel-track"><div class="funnel-fill" style="width:60%"><span class="funnel-count">41,200</span></div></div><div class="funnel-pct">60.2%</div><div class="funnel-drop">-39.8%</div></div>
+        <div class="funnel-step"><div class="funnel-label">Added to cart</div><div class="funnel-track"><div class="funnel-fill" style="width:13%"><span class="funnel-count">8,960</span></div></div><div class="funnel-pct">13.1%</div><div class="funnel-drop">-47.1%</div></div>
+        <div class="funnel-step"><div class="funnel-label">Began checkout</div><div class="funnel-track"><div class="funnel-fill" style="width:5.5%"><span class="funnel-count">3,780</span></div></div><div class="funnel-pct">5.5%</div><div class="funnel-drop">-7.6%</div></div>
+        <div class="funnel-step"><div class="funnel-label">Purchased</div><div class="funnel-track"><div class="funnel-fill" style="width:1.9%"><span class="funnel-count">1,284</span></div></div><div class="funnel-pct">1.88%</div><div class="funnel-drop">-3.6%</div></div>
+      </div>
+      <div class="info-note"><b>Biggest leak:</b> 34,220 people who viewed a product never added it to cart. That's the single highest-leverage place to test better product photos, sizing info, or reviews.</div>
+    </div>
+
+    <div class="grid-2 mb-16">
+      <div class="card">
+        <div class="section-title">Device breakdown</div>
+        <div class="section-note">Mobile drives the most traffic but converts lowest — a strong signal to check mobile checkout speed.</div>
+        <div class="chart-box chart-box-sm"><canvas id="chartDevice"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="section-title">Conversion rate by device</div>
+        <div class="legend-list mt-8">
+          <div class="legend-row"><span class="legend-dot" style="background:var(--signal)"></span><span class="legend-label">Desktop</span><span class="legend-val">2.64%</span></div>
+          <div class="legend-bar-track"><div class="legend-bar-fill" style="width:88%;background:var(--signal)"></div></div>
+          <div class="legend-row mt-8"><span class="legend-dot" style="background:var(--google)"></span><span class="legend-label">Mobile</span><span class="legend-val">1.42%</span></div>
+          <div class="legend-bar-track"><div class="legend-bar-fill" style="width:47%;background:var(--google)"></div></div>
+          <div class="legend-row mt-8"><span class="legend-dot" style="background:var(--warning)"></span><span class="legend-label">Tablet</span><span class="legend-val">2.10%</span></div>
+          <div class="legend-bar-track"><div class="legend-bar-fill" style="width:70%;background:var(--warning)"></div></div>
+        </div>
+        <div class="info-note">Mobile is 58% of your traffic but converts at little over half the desktop rate — a mobile checkout audit could be worth more than any new traffic campaign.</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="section-head">
+        <div>
+          <div class="section-title">Top landing pages</div>
+          <div class="section-note">The first page each session touched down on.</div>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Page</th><th class="num">Sessions</th><th class="num">Bounce rate</th><th class="num">Avg. time</th><th class="num">Conv. rate</th><th>Note</th></tr></thead>
+          <tbody>
+            <tr><td class="mono">/</td><td class="num mono">14,900</td><td class="num mono">52%</td><td class="num mono">1:08</td><td class="num mono">0.9%</td><td class="row-sub">Homepage — high traffic, low intent.</td></tr>
+            <tr><td class="mono">/blog/best-backpacking-tents-2026</td><td class="num mono">9,800</td><td class="num mono">61%</td><td class="num mono">2:40</td><td class="num mono">0.6%</td><td class="row-sub">Great traffic, needs product links/CTAs.</td></tr>
+            <tr><td class="mono">/collections/tents</td><td class="num mono">8,240</td><td class="num mono">38%</td><td class="num mono">2:14</td><td class="num mono">2.4%</td><td class="row-sub">Strong intent — good ad landing page.</td></tr>
+            <tr><td class="mono">/products/summit-3-season-tent</td><td class="num mono">6,100</td><td class="num mono">29%</td><td class="num mono">3:02</td><td class="num mono">4.1%</td><td class="row-sub">Best-converting page on the site.</td></tr>
+            <tr><td class="mono">/collections/sale</td><td class="num mono">5,200</td><td class="num mono">44%</td><td class="num mono">1:52</td><td class="num mono">1.8%</td><td class="row-sub">Solid, consider featuring more here.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+  <!-- ============ ADS / GOOGLE & META ============ -->
+  <section class="page" id="page-ads">
+    <div class="page-header">
+      <div>
+        <h1>Ads <span class="source-tag gads">Google Ads</span> <span class="source-tag meta">Meta Ads</span></h1>
+        <div class="page-sub">What you're spending, what it's returning, and which campaigns are quietly losing money.</div>
+      </div>
+      <div class="page-header-actions">
+        <button class="btn btn-outline btn-sm">↓ Export CSV</button>
+      </div>
+    </div>
+
+    <div class="grid-4 mb-16">
+      <div class="card">
+        <div class="stat-label">Total ad spend</div>
+        <div class="stat-value">$19,640</div>
+        <div class="stat-delta up">▲ 22.0%</div>
+        <div class="stat-context">$9,840 Google Ads (50.1%) · $9,800 Meta Ads (49.9%)</div>
+      </div>
+      <div class="card">
+        <div class="stat-label">Blended ROAS</div>
+        <div class="stat-value">3.22x</div>
+        <div class="stat-delta down">▼ 0.18x</div>
+        <div class="stat-context">$63,300 in ad-attributed revenue from $19,640 spend.</div>
+      </div>
+      <div class="card">
+        <div class="stat-label">Blended CAC</div>
+        <div class="stat-value">$50.90</div>
+        <div class="stat-delta up">▲ $4.10</div>
+        <div class="stat-context">$19,640 ÷ 386 ad-attributed new customers.</div>
+      </div>
+      <div class="card">
+        <div class="stat-label">MER (marketing efficiency)</div>
+        <div class="stat-value">7.27x</div>
+        <div class="stat-delta neutral">→ flat</div>
+        <div class="stat-context">Total store revenue ÷ total ad spend — the real all-in picture.</div>
+      </div>
+    </div>
+
+    <div class="col-main-side mb-16">
+      <div class="card">
+        <div class="section-title">Spend vs. ad-attributed revenue, daily</div>
+        <div class="section-note">Bars: daily spend across both platforms. Line: ROAS that day. Watch for days where the line dips below the dashed breakeven mark.</div>
+        <div class="chart-box chart-box-lg"><canvas id="chartAdsTrend"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="section-title">Google vs. Meta, head to head</div>
+        <div class="legend-list">
+          <div class="legend-row"><span class="legend-dot" style="background:var(--google)"></span><span class="legend-label">Google Ads spend</span><span class="legend-val">$9,840</span></div>
+          <div class="legend-row"><span class="legend-dot" style="background:var(--meta)"></span><span class="legend-label">Meta Ads spend</span><span class="legend-val">$9,800</span></div>
+          <div class="legend-row mt-8"><span class="legend-dot" style="background:var(--google)"></span><span class="legend-label">Google ROAS</span><span class="legend-val">2.90x</span></div>
+          <div class="legend-row"><span class="legend-dot" style="background:var(--meta)"></span><span class="legend-label">Meta ROAS</span><span class="legend-val">3.55x</span></div>
+          <div class="legend-row mt-8"><span class="legend-dot" style="background:var(--google)"></span><span class="legend-label">Google cost/purchase</span><span class="legend-val">$26.86</span></div>
+          <div class="legend-row"><span class="legend-dot" style="background:var(--meta)"></span><span class="legend-label">Meta cost/purchase</span><span class="legend-val">$32.78</span></div>
+        </div>
+        <div class="info-note">Meta is returning more per dollar right now — mainly thanks to the retargeting campaign below. Google's brand search is efficient too; the drag is the broad "non-brand" campaign.</div>
+      </div>
+    </div>
+
+    <div class="card mb-16">
+      <div class="section-head">
+        <div>
+          <div class="section-title">Google Ads campaigns <span class="source-tag gads">GADS</span></div>
+          <div class="section-note">CPC = cost per click. ROAS below the 1.82x breakeven line loses money after product cost.</div>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Campaign</th><th>Type</th><th class="num">Spend</th><th class="num">Clicks</th><th class="num">CTR</th><th class="num">CPC</th><th class="num">Conversions</th><th class="num">ROAS</th></tr></thead>
+          <tbody>
+            <tr><td class="row-title">Search – Brand</td><td><span class="tag tag-blue">Search</span></td><td class="num mono">$2,100</td><td class="num mono">1,840</td><td class="num mono">8.2%</td><td class="num mono">$1.14</td><td class="num mono">210</td><td class="num mono"><span class="tag tag-green">6.8x</span></td></tr>
+            <tr><td class="row-title">Search – "camping tents"</td><td><span class="tag tag-blue">Search</span></td><td class="num mono">$4,200</td><td class="num mono">2,960</td><td class="num mono">3.1%</td><td class="num mono">$1.42</td><td class="num mono">98</td><td class="num mono"><span class="tag tag-yellow">2.4x</span></td></tr>
+            <tr><td class="row-title">Performance Max – Catalog</td><td><span class="tag tag-gray">PMax</span></td><td class="num mono">$3,540</td><td class="num mono">4,100</td><td class="num mono">1.9%</td><td class="num mono">$0.86</td><td class="num mono">84</td><td class="num mono"><span class="tag tag-yellow">2.1x</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card mb-16">
+      <div class="section-head">
+        <div>
+          <div class="section-title">Meta Ads campaigns <span class="source-tag meta">META</span></div>
+          <div class="section-note">Reach = unique people served the ad. Retargeting reaches fewer people but converts far better.</div>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Campaign</th><th>Objective</th><th class="num">Spend</th><th class="num">Reach</th><th class="num">CTR</th><th class="num">CPC</th><th class="num">Purchases</th><th class="num">ROAS</th></tr></thead>
+          <tbody>
+            <tr><td class="row-title">Retargeting – Cart abandoners</td><td><span class="tag tag-purple">Retarget</span></td><td class="num mono">$1,800</td><td class="num mono">18,000</td><td class="num mono">3.8%</td><td class="num mono">$0.52</td><td class="num mono">142</td><td class="num mono"><span class="tag tag-green">6.9x</span></td></tr>
+            <tr><td class="row-title">Prospecting – Lookalike 1%</td><td><span class="tag tag-gray">Prospecting</span></td><td class="num mono">$4,200</td><td class="num mono">210,000</td><td class="num mono">1.4%</td><td class="num mono">$0.68</td><td class="num mono">96</td><td class="num mono"><span class="tag tag-yellow">2.6x</span></td></tr>
+            <tr><td class="row-title">Prospecting – Interest (Hiking)</td><td><span class="tag tag-gray">Prospecting</span></td><td class="num mono">$3,800</td><td class="num mono">340,000</td><td class="num mono">1.1%</td><td class="num mono">$0.79</td><td class="num mono">58</td><td class="num mono"><span class="tag tag-red">1.7x</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="info-note"><b>Flag:</b> "Prospecting – Interest (Hiking)" is below your 1.82x breakeven ROAS. It's reaching the most people for the least return — a candidate to pause or narrow.</div>
+    </div>
+  </section>
+  <!-- ============ PRODUCTS & STOCK ============ -->
+  <section class="page" id="page-products">
+    <div class="page-header">
+      <div>
+        <h1>Products &amp; Stock <span class="source-tag wc">WooCommerce</span></h1>
+        <div class="page-sub">What's selling, what's stuck on the shelf, and what's about to run out.</div>
+      </div>
+      <div class="page-header-actions">
+        <button class="btn btn-outline btn-sm">↓ Export CSV</button>
+      </div>
+    </div>
+
+    <div class="grid-4 mb-16">
+      <div class="card">
+        <div class="stat-label">Active SKUs</div>
+        <div class="stat-value">86</div>
+        <div class="stat-context">Across 6 categories.</div>
+      </div>
+      <div class="card">
+        <div class="stat-label">Out of stock</div>
+        <div class="stat-value" style="color:#A32D2D">1</div>
+        <div class="stat-context">Glacier Water Bottle 32oz — was a top-5 seller.</div>
+      </div>
+      <div class="card">
+        <div class="stat-label">Low stock (&lt; 10 units)</div>
+        <div class="stat-value" style="color:#8A5A0B">3</div>
+        <div class="stat-context">Reorder before these hit zero mid-month.</div>
+      </div>
+      <div class="card">
+        <div class="stat-label">Best seller by revenue</div>
+        <div class="stat-value sm">Summit Tent</div>
+        <div class="stat-context">$22,860 from 98 units this month.</div>
+      </div>
+    </div>
+
+    <div class="card mb-16">
+      <div class="section-title">Top products by revenue</div>
+      <div class="section-note">Your six highest earners this month, side by side.</div>
+      <div class="chart-box"><canvas id="chartTopProducts"></canvas></div>
+    </div>
+
+    <div class="card mb-16">
+      <div class="section-head">
+        <div>
+          <div class="section-title">Restock priority</div>
+          <div class="section-note">Sorted by how soon each product runs out at its current sales pace — the top row needs action first.</div>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Product</th><th class="num">Units/day</th><th class="num">In stock</th><th class="num">Days left</th><th>Status</th></tr></thead>
+          <tbody>
+            <tr><td class="row-title">Glacier Insulated Water Bottle 32oz</td><td class="num mono">10.6</td><td class="num mono">0</td><td class="num mono">0</td><td><span class="tag tag-red">Out of stock — reorder now</span></td></tr>
+            <tr><td class="row-title">Summit 3‑Season Tent (2P)</td><td class="num mono">3.3</td><td class="num mono">6</td><td class="num mono">~2</td><td><span class="tag tag-red">Critical</span></td></tr>
+            <tr><td class="row-title">Ridgeline Hardshell Rain Jacket</td><td class="num mono">4.7</td><td class="num mono">22</td><td class="num mono">~5</td><td><span class="tag tag-yellow">Low</span></td></tr>
+            <tr><td class="row-title">Alpine 40L Trail Backpack</td><td class="num mono">5.1</td><td class="num mono">34</td><td class="num mono">~7</td><td><span class="tag tag-yellow">Low</span></td></tr>
+            <tr><td class="row-title">TrailBlaze Trekking Poles (Pair)</td><td class="num mono">5.9</td><td class="num mono">89</td><td class="num mono">~15</td><td><span class="tag tag-green">Healthy</span></td></tr>
+            <tr><td class="row-title">EcoFlex Merino Base Layer</td><td class="num mono">8.1</td><td class="num mono">210</td><td class="num mono">~26</td><td><span class="tag tag-green">Healthy</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="section-head">
+        <div>
+          <div class="section-title">All products, this month</div>
+          <div class="section-note">Conversion rate = purchases ÷ product page views. Low conversion with high views usually means price, photos, or reviews need work.</div>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Product</th><th>Category</th><th class="num">Revenue</th><th class="num">Units sold</th><th class="num">Page views</th><th class="num">Conv. rate</th><th>Stock</th></tr></thead>
+          <tbody>
+            <tr><td class="row-title">Summit 3‑Season Tent (2P)</td><td><span class="tag tag-gray">Tents</span></td><td class="num mono">$22,860</td><td class="num mono">98</td><td class="num mono">6,200</td><td class="num mono">1.58%</td><td><span class="tag tag-red">6 left</span></td></tr>
+            <tr><td class="row-title">Alpine 40L Trail Backpack</td><td><span class="tag tag-gray">Packs</span></td><td class="num mono">$18,240</td><td class="num mono">152</td><td class="num mono">9,400</td><td class="num mono">1.62%</td><td><span class="tag tag-yellow">34 left</span></td></tr>
+            <tr><td class="row-title">Ridgeline Hardshell Rain Jacket</td><td><span class="tag tag-gray">Apparel</span></td><td class="num mono">$16,920</td><td class="num mono">141</td><td class="num mono">7,100</td><td class="num mono">1.99%</td><td><span class="tag tag-yellow">22 left</span></td></tr>
+            <tr><td class="row-title">EcoFlex Merino Base Layer</td><td><span class="tag tag-gray">Apparel</span></td><td class="num mono">$9,760</td><td class="num mono">244</td><td class="num mono">11,800</td><td class="num mono">2.07%</td><td><span class="tag tag-green">210 left</span></td></tr>
+            <tr><td class="row-title">TrailBlaze Trekking Poles (Pair)</td><td><span class="tag tag-gray">Accessories</span></td><td class="num mono">$7,140</td><td class="num mono">178</td><td class="num mono">5,900</td><td class="num mono">3.02%</td><td><span class="tag tag-green">89 left</span></td></tr>
+            <tr><td class="row-title">Glacier Insulated Water Bottle 32oz</td><td><span class="tag tag-gray">Accessories</span></td><td class="num mono">$6,380</td><td class="num mono">319</td><td class="num mono">14,200</td><td class="num mono">2.25%</td><td><span class="tag tag-red">Out of stock</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+  <!-- ============ CUSTOMERS ============ -->
+  <section class="page" id="page-customers">
+    <div class="page-header">
+      <div>
+        <h1>Customers <span class="source-tag wc">WooCommerce</span></h1>
+        <div class="page-sub">Who's buying, how often they come back, and where they're located.</div>
+      </div>
+      <div class="page-header-actions">
+        <button class="btn btn-outline btn-sm">↓ Export CSV</button>
+      </div>
+    </div>
+
+    <div class="grid-4 mb-16">
+      <div class="card">
+        <div class="stat-label">Customers this month</div>
+        <div class="stat-value">1,180</div>
+        <div class="stat-context">1,284 orders from 1,180 unique buyers.</div>
+      </div>
+      <div class="card">
+        <div class="stat-label">Repeat purchase rate</div>
+        <div class="stat-value">24.6%</div>
+        <div class="stat-delta up">▲ 1.4pp</div>
+        <div class="stat-context">Bought again within 90 days of their first order.</div>
+      </div>
+      <div class="card">
+        <div class="stat-label">Est. 12-month LTV</div>
+        <div class="stat-value">$286</div>
+        <div class="stat-context">Average revenue per customer over a year.</div>
+      </div>
+      <div class="card">
+        <div class="stat-label">New customer AOV</div>
+        <div class="stat-value">$97.53</div>
+        <div class="stat-context">vs. $134.85 for returning customers.</div>
+      </div>
+    </div>
+
+    <div class="col-main-side mb-16">
+      <div class="card">
+        <div class="section-title">New vs. returning, revenue &amp; orders</div>
+        <div class="section-note">Returning customers are 37% of orders but bring in disproportionately more per visit.</div>
+        <div class="chart-box"><canvas id="chartCustomerSplit"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="section-title">Revenue by region</div>
+        <div class="section-note">Where your customers are shipping to.</div>
+        <div class="legend-list" id="legendGeo"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="section-head">
+        <div>
+          <div class="section-title">Top customers, last 90 days</div>
+          <div class="section-note">Your highest-spending customers — good candidates for a VIP or early-access list.</div>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Customer</th><th class="num">Orders</th><th class="num">Total spent</th><th>Last order</th><th>Segment</th></tr></thead>
+          <tbody>
+            <tr><td class="row-title">R. Nakamura</td><td class="num mono">6</td><td class="num mono">$842.10</td><td class="mono">Aug 29</td><td><span class="tag tag-green">VIP</span></td></tr>
+            <tr><td class="row-title">M. Okafor</td><td class="num mono">5</td><td class="num mono">$701.40</td><td class="mono">Aug 27</td><td><span class="tag tag-green">VIP</span></td></tr>
+            <tr><td class="row-title">S. Bianchi</td><td class="num mono">4</td><td class="num mono">$598.20</td><td class="mono">Aug 30</td><td><span class="tag tag-blue">Repeat</span></td></tr>
+            <tr><td class="row-title">A. Kowalski</td><td class="num mono">3</td><td class="num mono">$512.00</td><td class="mono">Aug 24</td><td><span class="tag tag-blue">Repeat</span></td></tr>
+            <tr><td class="row-title">T. Nguyen</td><td class="num mono">3</td><td class="num mono">$447.80</td><td class="mono">Aug 26</td><td><span class="tag tag-blue">Repeat</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+  <!-- ============ INSIGHTS & ALERTS ============ -->
+  <section class="page" id="page-insights">
+    <div class="page-header">
+      <div>
+        <h1>Insights &amp; Alerts</h1>
+        <div class="page-sub">Auto-generated by cross-referencing WooCommerce, GA4, Google Ads and Meta Ads — ranked by dollar impact, not noise.</div>
+      </div>
+    </div>
+
+    <div class="grid-2 mb-16" id="insightsGrid">
+      <div class="insight-card p-high">
+        <div class="insight-top">
+          <div class="insight-tags"><span class="prio high">High priority</span><span class="source-tag wc">WC</span></div>
+          <button class="btn btn-xs btn-ghost">Dismiss</button>
+        </div>
+        <div class="insight-title">Your #5 best-seller is out of stock</div>
+        <div class="insight-text">Glacier Insulated Water Bottle 32oz sold 319 units this month — more than anything else you carry — and hit zero stock 4 days ago. At its selling pace, that's roughly $6,380 in monthly revenue currently going to zero.</div>
+        <div class="insight-foot"><span class="insight-metric">$6,380/mo at risk</span><button class="btn btn-sm btn-primary">Reorder stock</button></div>
+      </div>
+
+      <div class="insight-card p-high">
+        <div class="insight-top">
+          <div class="insight-tags"><span class="prio high">High priority</span><span class="source-tag meta">META</span></div>
+          <button class="btn btn-xs btn-ghost">Dismiss</button>
+        </div>
+        <div class="insight-title">A prospecting campaign is losing money</div>
+        <div class="insight-text">"Prospecting – Interest (Hiking)" is returning 1.7x ROAS, below your 1.82x breakeven once product cost is factored in. It's also your largest-reach campaign, so the losses compound quickly.</div>
+        <div class="insight-foot"><span class="insight-metric">Losing ~$0.09 per $1 spent</span><button class="btn btn-sm btn-primary">Review campaign</button></div>
+      </div>
+
+      <div class="insight-card p-medium">
+        <div class="insight-top">
+          <div class="insight-tags"><span class="prio medium">Medium priority</span><span class="source-tag wc">WC</span></div>
+          <button class="btn btn-xs btn-ghost">Dismiss</button>
+        </div>
+        <div class="insight-title">Summit Tent will sell out in about 2 days</div>
+        <div class="insight-text">98 units sold this month (3.3/day) against only 6 left in stock. This is your #1 product by revenue ($22,860) — a stockout here is the single most expensive one on the list after the water bottle.</div>
+        <div class="insight-foot"><span class="insight-metric">~2 days of stock left</span><button class="btn btn-sm btn-outline">Reorder stock</button></div>
+      </div>
+
+      <div class="insight-card p-medium">
+        <div class="insight-top">
+          <div class="insight-tags"><span class="prio medium">Medium priority</span><span class="source-tag meta">META</span></div>
+          <button class="btn btn-xs btn-ghost">Dismiss</button>
+        </div>
+        <div class="insight-title">Your retargeting campaign is under-funded</div>
+        <div class="insight-text">"Retargeting – Cart Abandoners" is your best performer at 6.9x ROAS and $0.52 CPC, but only gets $1,800 of your $19,640 ad budget (9%). Shifting even $1,000 from the underperforming interest campaign could add meaningfully to profit.</div>
+        <div class="insight-foot"><span class="insight-metric">6.9x ROAS, budget-limited</span><button class="btn btn-sm btn-outline">Increase budget</button></div>
+      </div>
+
+      <div class="insight-card p-medium">
+        <div class="insight-top">
+          <div class="insight-tags"><span class="prio medium">Medium priority</span><span class="source-tag wc">WC</span></div>
+          <button class="btn btn-xs btn-ghost">Dismiss</button>
+        </div>
+        <div class="insight-title">Returning customers spend 38% more per order</div>
+        <div class="insight-text">Returning customer AOV is $134.85 vs. $97.53 for new customers, but they're only 37% of orders. A win-back email to lapsed customers (no order in 60+ days) could lift revenue without any new ad spend.</div>
+        <div class="insight-foot"><span class="insight-metric">+$37.32 AOV vs. new</span><button class="btn btn-sm btn-outline">Draft win-back email</button></div>
+      </div>
+
+      <div class="insight-card p-low">
+        <div class="insight-top">
+          <div class="insight-tags"><span class="prio low">Low priority</span><span class="source-tag ga">GA4</span></div>
+          <button class="btn btn-xs btn-ghost">Dismiss</button>
+        </div>
+        <div class="insight-title">Your best blog post isn't converting</div>
+        <div class="insight-text">"Best Backpacking Tents 2026" pulled in 9,800 sessions this month — your 2nd highest of any page — but converts at just 0.6%, well under your 1.88% site average. Adding product cards or a mid-article CTA to the Summit Tent could capture demand that's already there.</div>
+        <div class="insight-foot"><span class="insight-metric">9,800 sessions, 0.6% CVR</span><button class="btn btn-sm btn-outline">Edit page</button></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="section-title">How these are ranked</div>
+      <div class="section-note">Priority is based on estimated dollar impact over the next 30 days, not how the metric looks in isolation.</div>
+      <div class="grid-3 mt-8">
+        <div><span class="prio high">High</span><div class="stat-context mt-8">Revenue actively being lost right now — stockouts on top sellers, campaigns spending below breakeven.</div></div>
+        <div><span class="prio medium">Medium</span><div class="stat-context mt-8">Revenue at risk within days, or a clear opportunity sitting on the table.</div></div>
+        <div><span class="prio low">Low</span><div class="stat-context mt-8">Worth doing, but won't meaningfully move this month's numbers on its own.</div></div>
+      </div>
+    </div>
+  </section>
+  <!-- ============ SETTINGS / CONNECTIONS ============ -->
+  <section class="page" id="page-settings">
+    <div class="page-header">
+      <div>
+        <h1>Connections</h1>
+        <div class="page-sub">Manage the data sources StoreBuddy pulls from, and set the thresholds that trigger an alert.</div>
+      </div>
+    </div>
+
+    <div class="card mb-16">
+      <div class="section-title">Data sources</div>
+      <div class="section-note">If a sync looks stale, reconnect it — insights are only as good as the data behind them.</div>
+      <div class="mt-8">
+        <div class="source-row">
+          <div class="source-icon wc">WC</div>
+          <div class="source-meta"><div class="name">WooCommerce</div><div class="sync">Store: solstice-outdoor.com · synced 4 min ago</div></div>
+          <span class="status-badge connected"><span class="dot on"></span>Connected</span>
+          <button class="btn btn-sm btn-outline">Sync now</button>
+        </div>
+        <div class="source-row">
+          <div class="source-icon ga">GA</div>
+          <div class="source-meta"><div class="name">Google Analytics 4</div><div class="sync">Property: solstice-outdoor.com · synced 12 min ago</div></div>
+          <span class="status-badge connected"><span class="dot on"></span>Connected</span>
+          <button class="btn btn-sm btn-outline">Sync now</button>
+        </div>
+        <div class="source-row">
+          <div class="source-icon gads">G</div>
+          <div class="source-meta"><div class="name">Google Ads</div><div class="sync">Account: 412-598-7710 · synced 18 min ago</div></div>
+          <span class="status-badge connected"><span class="dot on"></span>Connected</span>
+          <button class="btn btn-sm btn-outline">Sync now</button>
+        </div>
+        <div class="source-row">
+          <div class="source-icon meta">M</div>
+          <div class="source-meta"><div class="name">Meta Ads</div><div class="sync">Ad account: Solstice Outdoor Co. · sync delayed 2h — token expiring soon</div></div>
+          <span class="status-badge pending"><span class="dot warn"></span>Needs attention</span>
+          <button class="btn btn-sm btn-primary">Reconnect</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid-2 mb-16">
+      <div class="card">
+        <div class="section-title">Inventory alerts</div>
+        <div class="toggle-row">
+          <div><div class="toggle-name">Low stock warning</div><div class="toggle-desc">Alert when a product drops below this many units.</div></div>
+          <div class="toggle-right"><input class="threshold-input mono" type="text" value="10"><div class="switch on"></div></div>
+        </div>
+        <div class="toggle-row">
+          <div><div class="toggle-name">Out-of-stock alert</div><div class="toggle-desc">Instant alert the moment any SKU hits zero.</div></div>
+          <div class="toggle-right"><div class="switch on"></div></div>
+        </div>
+        <div class="toggle-row">
+          <div><div class="toggle-name">Reorder suggestions</div><div class="toggle-desc">Estimate days-of-stock left using your sales pace.</div></div>
+          <div class="toggle-right"><div class="switch on"></div></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="section-title">Marketing alerts</div>
+        <div class="toggle-row">
+          <div><div class="toggle-name">ROAS floor</div><div class="toggle-desc">Flag any campaign that drops below this ROAS.</div></div>
+          <div class="toggle-right"><input class="threshold-input mono" type="text" value="1.8x"><div class="switch on"></div></div>
+        </div>
+        <div class="toggle-row">
+          <div><div class="toggle-name">Cart abandonment spike</div><div class="toggle-desc">Alert if abandonment rises more than 10pp week over week.</div></div>
+          <div class="toggle-right"><div class="switch on"></div></div>
+        </div>
+        <div class="toggle-row">
+          <div><div class="toggle-name">Refund rate ceiling</div><div class="toggle-desc">Alert when refunds exceed this share of orders.</div></div>
+          <div class="toggle-right"><input class="threshold-input mono" type="text" value="5%"><div class="switch off"></div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="section-title">Digest &amp; delivery</div>
+      <div class="toggle-row">
+        <div><div class="toggle-name">Daily email digest</div><div class="toggle-desc">Yesterday's numbers and any new alerts, every morning at 8am.</div></div>
+        <div class="toggle-right"><div class="switch on"></div></div>
+      </div>
+      <div class="toggle-row">
+        <div><div class="toggle-name">Weekly summary</div><div class="toggle-desc">A Monday recap comparing this week to last.</div></div>
+        <div class="toggle-right"><div class="switch on"></div></div>
+      </div>
+      <div class="toggle-row">
+        <div><div class="toggle-name">Slack alerts</div><div class="toggle-desc">Post high-priority alerts to #store-ops the moment they fire.</div></div>
+        <div class="toggle-right"><div class="switch off"></div></div>
+      </div>
+    </div>
+  </section>
+</main>
+<script>
+(function(){
+  "use strict";
+
+  /* ---------- NAV / PAGE SWITCHING ---------- */
+  function goToPage(pageId){
+    document.querySelectorAll('.page').forEach(function(p){ p.classList.toggle('active', p.id === 'page-'+pageId); });
+    document.querySelectorAll('.nav-item').forEach(function(n){ n.classList.toggle('active', n.dataset.page === pageId); });
+    window.scrollTo({top:0, behavior:'instant'});
+  }
+  document.querySelectorAll('.nav-item').forEach(function(btn){
+    btn.addEventListener('click', function(){ goToPage(btn.dataset.page); });
+  });
+  document.querySelectorAll('[data-goto]').forEach(function(btn){
+    btn.addEventListener('click', function(){ goToPage(btn.dataset.goto); });
+  });
+
+  /* ---------- TOGGLE SWITCHES ---------- */
+  document.querySelectorAll('.switch').forEach(function(sw){
+    sw.addEventListener('click', function(){ sw.classList.toggle('on'); });
+  });
+
+  /* ---------- DISMISS INSIGHT CARDS ---------- */
+  var insightCount = document.querySelectorAll('#insightsGrid .insight-card').length;
+  var badge = document.getElementById('insightNavBadge');
+  document.querySelectorAll('#insightsGrid .insight-card .btn-ghost').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      var card = btn.closest('.insight-card');
+      card.style.opacity = '0';
+      setTimeout(function(){ card.remove(); }, 150);
+      insightCount = Math.max(0, insightCount - 1);
+      if(badge) badge.textContent = insightCount;
+    });
+  });
+
+  /* ---------- DATE LABELS: Aug 2 - Aug 31, 2026 ---------- */
+  var DAYS = 30;
+  var dateLabels = [];
+  for(var d=2; d<=31; d++){ dateLabels.push('Aug ' + d); }
+
+  function wave(base, trend, amp, days, phase, amp2){
+    amp2 = amp2 === undefined ? amp*0.35 : amp2;
+    var arr = [];
+    for(var i=0;i<days;i++){
+      var v = base + trend*i + amp*Math.sin((i+phase)/3.1) + amp2*Math.sin((i+phase)/1.4);
+      arr.push(Math.round(Math.max(0, v)));
+    }
+    return arr;
+  }
+
+  var revenueSeries = wave(3250, 96, 850, DAYS, 0);
+  var adSpendSeries  = wave(540, 6, 130, DAYS, 2);
+  var ordersSeries   = wave(29, 1.05, 8, DAYS, 1);
+  var sessionsNewSeries   = wave(1380, 13, 260, DAYS, 0.5);
+  var sessionsReturnSeries = wave(600, 6, 120, DAYS, 1.5);
+  var roasSeries = [];
+  for(var i=0;i<DAYS;i++){
+    var r = 3.35 - 0.008*i + 0.55*Math.sin((i+2)/2.6);
+    roasSeries.push(Math.max(1.2, Math.round(r*100)/100));
+  }
+  var cvrSpark = wave(1.6, 0.01, 0.35, 14, 3, 0.15).map(function(v){ return v/100 + 1.5; });
+
+  /* ---------- CHART.JS DEFAULTS ---------- */
+  var C = {
+    ink:'#16211D', ink2:'#3B463F', grey:'#7C867E', line:'#D4D9D2',
+    signal:'#1F8A70', signalDark:'#166A55', alert:'#E2572B', alertDark:'#A32D2D',
+    warning:'#D9A21B', warningDark:'#8A5A0B', google:'#2A6B9E', meta:'#6B4FA0', paper2:'#E6EAE5'
+  };
+  Chart.defaults.font.family = "'IBM Plex Mono', monospace";
+  Chart.defaults.font.size = 11;
+  Chart.defaults.color = C.ink2;
+  Chart.defaults.plugins.legend.labels.usePointStyle = true;
+  Chart.defaults.plugins.legend.labels.boxWidth = 7;
+  Chart.defaults.plugins.legend.labels.boxHeight = 7;
+  Chart.defaults.plugins.legend.labels.padding = 14;
+
+  var gridLight = { color: C.line, drawTicks:false };
+  var noGrid = { display:false };
+
+  /* ---------- SPARKLINES (inline SVG, no chart.js) ---------- */
+  function buildSpark(id, data, color){
+    var svg = document.getElementById(id);
+    if(!svg || !data.length) return;
+    var w = 88, h = 32, pad = 3;
+    var min = Math.min.apply(null, data), max = Math.max.apply(null, data);
+    if(min === max){ max = min + 1; }
+    var pts = data.map(function(v, i){
+      var x = pad + (i/(data.length-1)) * (w - pad*2);
+      var y = h - pad - ((v - min)/(max - min)) * (h - pad*2);
+      return x.toFixed(1) + ',' + y.toFixed(1);
+    });
+    var areaPts = pts.slice();
+    areaPts.push((w-pad).toFixed(1) + ',' + (h-pad).toFixed(1));
+    areaPts.push(pad.toFixed(1) + ',' + (h-pad).toFixed(1));
+    var ns = 'http://www.w3.org/2000/svg';
+    var area = document.createElementNS(ns,'polygon');
+    area.setAttribute('points', areaPts.join(' '));
+    area.setAttribute('fill', color); area.setAttribute('opacity','0.12');
+    var line = document.createElementNS(ns,'polyline');
+    line.setAttribute('points', pts.join(' '));
+    line.setAttribute('fill','none'); line.setAttribute('stroke', color);
+    line.setAttribute('stroke-width','2'); line.setAttribute('stroke-linecap','round'); line.setAttribute('stroke-linejoin','round');
+    svg.appendChild(area); svg.appendChild(line);
+  }
+  buildSpark('spk-revenue', revenueSeries.slice(-14), C.signal);
+  buildSpark('spk-profit', revenueSeries.slice(-14).map(function(v,i){ return Math.round(v*0.55) - adSpendSeries.slice(-14)[i]; }), C.signal);
+  buildSpark('spk-roas', roasSeries.slice(-14), C.warningDark);
+  buildSpark('spk-cvr', cvrSpark, C.signal);
+
+  /* ---------- LEGEND LISTS ---------- */
+  function renderLegend(containerId, items){
+    var el = document.getElementById(containerId);
+    if(!el) return;
+    var max = Math.max.apply(null, items.map(function(it){ return it.value; }));
+    el.innerHTML = items.map(function(it){
+      var pct = Math.round((it.value/max)*100);
+      return '<div>' +
+        '<div class="legend-row"><span class="legend-dot" style="background:'+it.color+'"></span>' +
+        '<span class="legend-label">'+it.label+(it.sub ? ' <span class="legend-sub">· '+it.sub+'</span>' : '')+'</span>' +
+        '<span class="legend-val">'+it.display+'</span></div>' +
+        '<div class="legend-bar-track"><div class="legend-bar-fill" style="width:'+pct+'%;background:'+it.color+'"></div></div>' +
+        '</div>';
+    }).join('');
+  }
+
+  renderLegend('legendChannelRevenue', [
+    {label:'Organic search', value:46900, display:'$46,900', sub:'33%', color:C.signal},
+    {label:'Paid social (Meta)', value:34800, display:'$34,800', sub:'24%', color:C.meta},
+    {label:'Paid search (Google)', value:28500, display:'$28,500', sub:'20%', color:C.google},
+    {label:'Direct', value:17150, display:'$17,150', sub:'12%', color:C.grey},
+    {label:'Email', value:9400, display:'$9,400', sub:'7%', color:C.warningDark},
+    {label:'Organic social', value:6100, display:'$6,100', sub:'4%', color:'#B7BDB4'}
+  ]);
+
+  renderLegend('legendTrafficSource', [
+    {label:'Organic search', value:24600, display:'24,600', sub:'36%', color:C.signal},
+    {label:'Paid social (Meta)', value:15700, display:'15,700', sub:'23%', color:C.meta},
+    {label:'Paid search (Google)', value:12300, display:'12,300', sub:'18%', color:C.google},
+    {label:'Direct', value:8900, display:'8,900', sub:'13%', color:C.grey},
+    {label:'Organic social', value:4100, display:'4,100', sub:'6%', color:'#B7BDB4'},
+    {label:'Email', value:2820, display:'2,820', sub:'4%', color:C.warningDark}
+  ]);
+
+  renderLegend('legendGeo', [
+    {label:'California', value:18, display:'18%', color:C.signal},
+    {label:'Texas', value:11, display:'11%', color:C.google},
+    {label:'New York', value:9, display:'9%', color:C.meta},
+    {label:'Colorado', value:8, display:'8%', color:C.warningDark},
+    {label:'Washington', value:7, display:'7%', color:'#B7BDB4'},
+    {label:'All other states', value:47, display:'47%', color:C.ink2}
+  ]);
+
+  /* ---------- OVERVIEW MINI INSIGHTS ---------- */
+  var overviewInsights = [
+    {dot:'red', text:'<b>Glacier Water Bottle 32oz</b> is out of stock — was driving ~$6,380/mo in revenue.', time:'2 hours ago · High priority'},
+    {dot:'red', text:'Meta campaign <b>"Prospecting – Interest"</b> is running at 1.7x ROAS, below your 1.82x breakeven.', time:'5 hours ago · High priority'},
+    {dot:'yellow', text:'<b>Summit 3‑Season Tent</b> has ~2 days of stock left at its current sales pace.', time:'1 day ago · Medium priority'}
+  ];
+  document.getElementById('overviewInsights').innerHTML = overviewInsights.map(function(it){
+    return '<div class="alert-row"><div class="alert-dot '+it.dot+'"></div><div><div class="alert-text">'+it.text+'</div><div class="alert-time">'+it.time+'</div></div></div>';
+  }).join('');
+
+  /* ---------- CHARTS ---------- */
+
+  // Overview: Revenue vs Ad spend
+  new Chart(document.getElementById('chartRevenueSpend'), {
+    data: {
+      labels: dateLabels,
+      datasets: [
+        { type:'bar', label:'Ad spend', data: adSpendSeries, backgroundColor:'#CFE0D9', borderRadius:3, order:2, yAxisID:'y' },
+        { type:'line', label:'Revenue', data: revenueSeries, borderColor:C.signal, backgroundColor:C.signal, pointRadius:0, borderWidth:2.5, tension:0.35, order:1, yAxisID:'y' }
+      ]
+    },
+    options: {
+      responsive:true, maintainAspectRatio:false,
+      interaction:{mode:'index', intersect:false},
+      scales:{ x:{ grid:noGrid, ticks:{ maxTicksLimit:8 } }, y:{ grid:gridLight, ticks:{ callback:function(v){ return '$'+(v/1000)+'k'; } } } },
+      plugins:{ legend:{ position:'top', align:'end' }, tooltip:{ callbacks:{ label:function(ctx){ return ctx.dataset.label+': $'+ctx.parsed.y.toLocaleString(); } } } }
+    }
+  });
+
+  // Sales: Revenue & Orders
+  new Chart(document.getElementById('chartSalesTrend'), {
+    data:{
+      labels:dateLabels,
+      datasets:[
+        { type:'line', label:'Revenue', data:revenueSeries, borderColor:C.signal, backgroundColor:C.signal, pointRadius:0, borderWidth:2.5, tension:0.35, yAxisID:'y' },
+        { type:'bar', label:'Orders', data:ordersSeries, backgroundColor:'#DCE5F0', borderRadius:3, yAxisID:'y1' }
+      ]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false, interaction:{mode:'index', intersect:false},
+      scales:{
+        x:{ grid:noGrid, ticks:{ maxTicksLimit:8 } },
+        y:{ grid:gridLight, position:'left', ticks:{ callback:function(v){ return '$'+(v/1000)+'k'; } } },
+        y1:{ grid:noGrid, position:'right', ticks:{ stepSize:20 } }
+      },
+      plugins:{ legend:{ position:'top', align:'end' } }
+    }
+  });
+
+  // Sales: Category revenue
+  new Chart(document.getElementById('chartCategoryRevenue'), {
+    type:'bar',
+    data:{
+      labels:['Tents','Apparel','Packs','Accessories','Footwear','Cookware'],
+      datasets:[{ data:[41200, 33900, 28600, 19100, 12400, 7650], backgroundColor:[C.signal,C.signalDark,C.google,C.meta,C.warningDark,'#B7BDB4'], borderRadius:4 }]
+    },
+    options:{
+      indexAxis:'y', responsive:true, maintainAspectRatio:false,
+      scales:{ x:{ grid:gridLight, ticks:{ callback:function(v){ return '$'+(v/1000)+'k'; } } }, y:{ grid:noGrid } },
+      plugins:{ legend:{ display:false }, tooltip:{ callbacks:{ label:function(ctx){ return '$'+ctx.parsed.x.toLocaleString(); } } } }
+    }
+  });
+
+  // Sales: Payment methods
+  new Chart(document.getElementById('chartPaymentMethods'), {
+    type:'doughnut',
+    data:{ labels:['Card (Stripe)','PayPal','Shop Pay / Apple Pay','Other'], datasets:[{ data:[61,24,11,4], backgroundColor:[C.signal,C.google,C.meta,'#B7BDB4'], borderColor:'#fff', borderWidth:2 }] },
+    options:{ responsive:true, maintainAspectRatio:false, cutout:'62%', plugins:{ legend:{ position:'right' } } }
+  });
+
+  // Traffic: Sessions new vs returning
+  new Chart(document.getElementById('chartSessionsTrend'), {
+    type:'bar',
+    data:{
+      labels:dateLabels,
+      datasets:[
+        { label:'New visitors', data:sessionsNewSeries, backgroundColor:C.google, stack:'s' },
+        { label:'Returning visitors', data:sessionsReturnSeries, backgroundColor:C.signal, stack:'s' }
+      ]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      scales:{ x:{ grid:noGrid, ticks:{ maxTicksLimit:8 }, stacked:true }, y:{ grid:gridLight, stacked:true } },
+      plugins:{ legend:{ position:'top', align:'end' } }
+    }
+  });
+
+  // Traffic: source doughnut
+  new Chart(document.getElementById('chartTrafficSource'), {
+    type:'doughnut',
+    data:{ labels:['Organic search','Paid social','Paid search','Direct','Organic social','Email'],
+      datasets:[{ data:[24600,15700,12300,8900,4100,2820], backgroundColor:[C.signal,C.meta,C.google,C.grey,'#B7BDB4',C.warningDark], borderColor:'#fff', borderWidth:2 }] },
+    options:{ responsive:true, maintainAspectRatio:false, cutout:'62%', plugins:{ legend:{ display:false } } }
+  });
+
+  // Traffic: device doughnut
+  new Chart(document.getElementById('chartDevice'), {
+    type:'doughnut',
+    data:{ labels:['Mobile','Desktop','Tablet'], datasets:[{ data:[58,36,6], backgroundColor:[C.google,C.signal,C.warningDark], borderColor:'#fff', borderWidth:2 }] },
+    options:{ responsive:true, maintainAspectRatio:false, cutout:'62%', plugins:{ legend:{ position:'right' } } }
+  });
+
+  // Ads: spend vs ROAS
+  new Chart(document.getElementById('chartAdsTrend'), {
+    data:{
+      labels:dateLabels,
+      datasets:[
+        { type:'bar', label:'Daily spend', data:adSpendSeries, backgroundColor:'#EAD9F0', borderRadius:3, yAxisID:'y' },
+        { type:'line', label:'ROAS', data:roasSeries, borderColor:C.meta, backgroundColor:C.meta, pointRadius:0, borderWidth:2.5, tension:0.35, yAxisID:'y1' },
+        { type:'line', label:'Breakeven (1.82x)', data:dateLabels.map(function(){return 1.82;}), borderColor:C.alert, borderWidth:1.5, borderDash:[5,4], pointRadius:0, yAxisID:'y1' }
+      ]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false, interaction:{mode:'index', intersect:false},
+      scales:{
+        x:{ grid:noGrid, ticks:{ maxTicksLimit:8 } },
+        y:{ grid:gridLight, position:'left', ticks:{ callback:function(v){ return '$'+v; } } },
+        y1:{ grid:noGrid, position:'right', ticks:{ callback:function(v){ return v+'x'; } } }
+      },
+      plugins:{ legend:{ position:'top', align:'end' } }
+    }
+  });
+
+  // Products: top products bar
+  new Chart(document.getElementById('chartTopProducts'), {
+    type:'bar',
+    data:{
+      labels:['Summit Tent','Alpine Backpack','Rain Jacket','Base Layer','Trekking Poles','Water Bottle'],
+      datasets:[{ data:[22860,18240,16920,9760,7140,6380], backgroundColor:[C.signal,C.signalDark,C.google,C.meta,C.warningDark,C.alert], borderRadius:4 }]
+    },
+    options:{
+      indexAxis:'y', responsive:true, maintainAspectRatio:false,
+      scales:{ x:{ grid:gridLight, ticks:{ callback:function(v){ return '$'+(v/1000)+'k'; } } }, y:{ grid:noGrid } },
+      plugins:{ legend:{ display:false }, tooltip:{ callbacks:{ label:function(ctx){ return '$'+ctx.parsed.x.toLocaleString(); } } } }
+    }
+  });
+
+  // Customers: revenue split
+  new Chart(document.getElementById('chartCustomerSplit'), {
+    type:'doughnut',
+    data:{ labels:['New customers — $79,200','Returning customers — $63,650'], datasets:[{ data:[79200,63650], backgroundColor:[C.google,C.signal], borderColor:'#fff', borderWidth:2 }] },
+    options:{ responsive:true, maintainAspectRatio:false, cutout:'62%', plugins:{ legend:{ position:'bottom' } } }
+  });
+
+})();
+</script>
+<script src="/app.js" defer></script>
+</body>
+</html>

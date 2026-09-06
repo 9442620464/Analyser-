@@ -1,0 +1,30 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: storebuddy
+      POSTGRES_USER: storebuddy
+      POSTGRES_PASSWORD: storebuddy
+    ports:
+      - "5432:5432"
+    volumes:
+      - storebuddy_pg:/var/lib/postgresql/data
+
+  app:
+    build: .
+    depends_on:
+      - postgres
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DATABASE_URL: postgresql://storebuddy:storebuddy@postgres:5432/storebuddy?schema=public
+      APP_URL: http://localhost:3000
+      JWT_SECRET: change-this-in-production
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-5.6}
+    ports:
+      - "3000:3000"
+
+volumes:
+  storebuddy_pg:
