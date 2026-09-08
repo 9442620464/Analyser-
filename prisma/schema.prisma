@@ -1,0 +1,160 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  OWNER
+  ADMIN
+  MEMBER
+  VIEWER
+}
+
+enum ConnectionProvider {
+  WOOCOMMERCE
+  GA4
+  GOOGLE_ADS
+  META_ADS
+}
+
+enum ConnectionStatus {
+  CONNECTED
+  NEEDS_ATTENTION
+  DISCONNECTED
+  SYNCING
+}
+
+enum InsightPriority {
+  HIGH
+  MEDIUM
+  LOW
+}
+
+model User {
+  id           String         @id @default(cuid())
+  email        String         @unique
+  passwordHash String
+  name         String?
+  createdAt    DateTime       @default(now())
+  memberships  Membership[]
+  sessions     Session[]
+}
+
+model Tenant {
+  id            String         @id @default(cuid())
+  name          String
+  slug          String         @unique
+  createdAt     DateTime       @default(now())
+  memberships   Membership[]
+  connections   Connection[]
+  metrics       DailyMetric[]
+  insights      Insight[]
+  settings      AlertSetting?
+  syncRuns      SyncRun[]
+}
+
+model Membership {
+  id        String   @id @default(cuid())
+  userId    String
+  tenantId  String
+  role      Role     @default(MEMBER)
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  @@unique([userId, tenantId])
+  @@index([tenantId])
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  userId    String
+  tokenHash String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([userId, expiresAt])
+}
+
+model Connection {
+  id             String             @id @default(cuid())
+  tenantId       String
+  provider       ConnectionProvider
+  status         ConnectionStatus   @default(DISCONNECTED)
+  displayName    String
+  externalId     String?
+  encryptedData  String?
+  scopes         String[]           @default([])
+  lastSyncedAt   DateTime?
+  lastError     String?
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+  tenant         Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  @@unique([tenantId, provider])
+  @@index([tenantId, status])
+}
+
+model DailyMetric {
+  id             String   @id @default(cuid())
+  tenantId       String
+  date           DateTime
+  revenue        Decimal  @default(0) @db.Decimal(14, 2)
+  adSpend        Decimal  @default(0) @db.Decimal(14, 2)
+  orders         Int      @default(0)
+  sessions       Int      @default(0)
+  newCustomers   Int      @default(0)
+  returningCustomers Int  @default(0)
+  refunds        Decimal  @default(0) @db.Decimal(14, 2)
+  tenant         Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  @@unique([tenantId, date])
+  @@index([tenantId, date])
+}
+
+model Insight {
+  id            String         @id @default(cuid())
+  tenantId      String
+  priority      InsightPriority
+  title         String
+  body          String
+  source        String?
+  metricValue   String?
+  actionLabel   String?
+  fingerprint   String         
+  dismissedAt   DateTime?
+  createdAt     DateTime       @default(now())
+  expiresAt     DateTime?
+  tenant        Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  @@unique([tenantId, fingerprint])
+  @@index([tenantId, priority, dismissedAt])
+}
+
+model AlertSetting {
+  id                    String   @id @default(cuid())
+  tenantId              String   @unique
+  lowStockThreshold     Int      @default(10)
+  roasFloor              Decimal  @default(1.8) @db.Decimal(6, 2)
+  cartAbandonmentSpike  Decimal  @default(10) @db.Decimal(6, 2)
+  refundRateCeiling     Decimal  @default(5) @db.Decimal(6, 2)
+  outOfStockEnabled     Boolean  @default(true)
+  reorderEnabled        Boolean  @default(true)
+  dailyEmailEnabled     Boolean  @default(true)
+  weeklySummaryEnabled  Boolean  @default(true)
+  slackAlertsEnabled    Boolean  @default(false)
+  tenant                Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+}
+
+model SyncRun {
+  id          String   @id @default(cuid())
+  tenantId    String
+  provider    ConnectionProvider
+  startedAt   DateTime @default(now())
+  finishedAt  DateTime?
+  status      String
+  recordsRead Int      @default(0)
+  error       String?
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  @@index([tenantId, provider, startedAt])
+}
