@@ -9,7 +9,7 @@ import cron from 'node-cron';
 import { env } from './config/env.js';
 import { authRouter } from './routes/auth.js';
 import { dashboardRouter } from './routes/dashboard.js';
-import { connectionsRouter, googleCallback, metaCallback } from './routes/connections.js';
+import { connectionsRouter, googleCallback, metaCallback, wooCommerceCallback } from './routes/connections.js';
 import { webhookRouter } from './routes/webhooks.js';
 import { prisma } from './lib/prisma.js';
 import { requireAuth, tenantId } from './lib/auth.js';
@@ -36,6 +36,8 @@ app.use('/api/dashboard', dashboardRouter);
 app.use('/api/connections', connectionsRouter);
 app.get('/api/connections/google/callback', async (req, res) => { try { const r=await googleCallback(String(req.query.code||''), String(req.query.state||'')); await Promise.all((['GA4','GOOGLE_ADS'] as const).map(provider=>prisma.connection.upsert({where:{tenantId_provider:{tenantId:r.tenantId,provider}},create:{tenantId:r.tenantId,provider,displayName:provider==='GA4'?'Google Analytics 4':'Google Ads',status:'CONNECTED',encryptedData:JSON.stringify(r.token)},update:{status:'CONNECTED',encryptedData:JSON.stringify(r.token),lastError:null}}))); res.redirect('/dashboard'); } catch(e){ res.status(400).send(`<h1>Google connection failed</h1><pre>${String(e)}</pre>`); }});
 app.get('/api/connections/meta/callback', async (req, res) => { try { const r=await metaCallback(String(req.query.code||''), String(req.query.state||'')); await prisma.connection.upsert({where:{tenantId_provider:{tenantId:r.tenantId,provider:'META_ADS'}},create:{tenantId:r.tenantId,provider:'META_ADS',displayName:'Meta Ads',status:'CONNECTED',encryptedData:JSON.stringify(r.token)},update:{status:'CONNECTED',encryptedData:JSON.stringify(r.token),lastError:null}}); res.redirect('/dashboard'); } catch(e){ res.status(400).send(`<h1>Meta connection failed</h1><pre>${String(e)}</pre>`); }});
+// Called directly by the merchant's WooCommerce store (server-to-server), not by their browser.
+app.post('/api/connections/woocommerce/callback', async (req, res) => { try { await wooCommerceCallback(req.body ?? {}); res.status(200).json({ ok: true }); } catch (e) { res.status(400).json({ error: e instanceof Error ? e.message : String(e) }); } });
 app.use('/api/webhooks', webhookRouter);
 
 app.get('/api/me', requireAuth, async (_req, res) => {

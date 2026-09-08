@@ -4,6 +4,7 @@ import { encryptJson } from '../lib/crypto.js';
 import { prisma } from '../lib/prisma.js';
 import { googleAuthUrl, exchangeGoogleCode } from '../integrations/google.js';
 import { metaAuthUrl, exchangeMetaCode } from '../integrations/meta.js';
+import { wooAuthorizeUrl } from '../integrations/woocommerce.js';
 import { env } from '../config/env.js';
 import jwt from 'jsonwebtoken';
 
@@ -15,9 +16,29 @@ connectionsRouter.get('/', async (_req, res) => {
   res.json(rows);
 });
 
-connectionsRouter.post('/woocommerce', async (req, res) => {
+// One-click WooCommerce connect: redirect the store owner to their own wp-admin, where a single
+// "Approve" button generates and sends back API credentials. No copy-pasting of keys required.
+connectionsRouter.get('/woocommerce/start', (req, res) => {
+  const raw = String(req.query.baseUrl || '');
+  let url;
+  try { url = new URL(raw); } catch { return res.status(400).json({ error: 'Enter your store address, e.g. https://yourstore.com' }); }
+  if (!/^https?:$/.test(url.protocol)) return res.status(400).json({ error: 'Store address must start with http:// or https://' });
+  const state = jwt.sign({ tenantId: tenantId(res), baseUrl: url.origin }, env.JWT_SECRET, { expiresIn: '15m' });
+  res.redirect(wooAuthorizeUrl(url.origin, {
+    appName: 'StoreBuddy AI',
+    userId: state,
+    returnUrl: `${env.APP_URL}/dashboard?woocommerce=pending`,
+    callbackUrl: `${env.APP_URL}/api/connections/woocommerce/callback`,
+    scope: 'read'
+  }));
+});
+
+// Fallback for stores that block /wc-auth/ (e.g. some security plugins) or aren't reachable
+// for the server-to-server callback above. Requires manually generated API keys.
+connectionsRouter.post('/woocommerce/manual', async (req, res) => {
   const { baseUrl, consumerKey, consumerSecret, displayName } = req.body ?? {};
-  const url = new URL(String(baseUrl));
+  let url;
+  try { url = new URL(String(baseUrl)); } catch { return res.status(400).json({ error: 'Enter a valid store URL.' }); }
   if (!/^https?:$/.test(url.protocol)) return res.status(400).json({ error: 'WooCommerce URL must use HTTPS (HTTP is allowed only for local development).' });
   const row = await prisma.connection.upsert({
     where: { tenantId_provider: { tenantId: tenantId(res), provider: 'WOOCOMMERCE' } },
@@ -52,4 +73,18 @@ export async function metaCallback(code: string, state: string) {
   const claims = jwt.verify(state, env.JWT_SECRET) as { tenantId: string; provider: string };
   const token = await exchangeMetaCode(code, env.META_APP_ID, env.META_APP_SECRET, env.META_REDIRECT_URI);
   return { tenantId: claims.tenantId, token };
+}
+
+// WooCommerce POSTs the generated key/secret here directly from the store (server-to-server),
+// not from the store owner's browser, so this must not require our own session cookie.
+export async function wooCommerceCallback(body: { user_id?: string; consumer_key?: string; consumer_secret?: string; key_permissions?: string }) {
+  const { user_id, consumer_key, consumer_secret } = body ?? {};
+  if (!user_id || !consumer_key || !consumer_secret) throw new Error('Incomplete WooCommerce authorization payload.');
+  const claims = jwt.verify(user_id, env.JWT_SECRET) as { tenantId: string; baseUrl: string };
+  await prisma.connection.upsert({
+    where: { tenantId_provider: { tenantId: claims.tenantId, provider: 'WOOCOMMERCE' } },
+    create: { tenantId: claims.tenantId, provider: 'WOOCOMMERCE', displayName: new URL(claims.baseUrl).hostname, status: 'CONNECTED', encryptedData: encryptJson({ baseUrl: claims.baseUrl, consumerKey: consumer_key, consumerSecret: consumer_secret }) },
+    update: { status: 'CONNECTED', lastError: null, encryptedData: encryptJson({ baseUrl: claims.baseUrl, consumerKey: consumer_key, consumerSecret: consumer_secret }) }
+  });
+  return { tenantId: claims.tenantId };
 }
