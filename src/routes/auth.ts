@@ -10,9 +10,13 @@ authRouter.post('/login', async (req, res) => {
   const user = await prisma.user.findUnique({ where: { email: String(email || '').toLowerCase() } });
   if (!user || !(await bcrypt.compare(String(password || ''), user.passwordHash))) return res.status(401).json({ error: 'Invalid email or password' });
   const membership = await prisma.membership.findFirst({ where: { userId: user.id }, include: { tenant: true } });
-  if (!membership) return res.status(403).json({ error: 'No store access is assigned to this account' });
-  issueSession(res, { userId: user.id, tenantId: membership.tenantId });
-  res.json({ user: { id: user.id, email: user.email, name: user.name }, tenant: membership.tenant });
+  if (!membership && !user.isPlatformAdmin) return res.status(403).json({ error: 'No store access is assigned to this account' });
+  issueSession(res, { userId: user.id, tenantId: membership?.tenantId });
+  res.json({
+    user: { id: user.id, email: user.email, name: user.name, isPlatformAdmin: user.isPlatformAdmin },
+    tenant: membership?.tenant ?? null,
+    redirectTo: membership ? '/dashboard' : '/admin'
+  });
 });
 
 authRouter.post('/logout', (_req, res) => { clearSession(res); res.status(204).end(); });

@@ -8,7 +8,7 @@ const schema = z.object({
   DATABASE_URL: z.string().min(1),
   JWT_SECRET: z.string().min(32),
   OPENAI_API_KEY: z.string().optional(),
-  OPENAI_MODEL: z.string().default('gpt-5.6'),
+  OPENAI_MODEL: z.string().default('gpt-5.6-sol'),
   GOOGLE_CLIENT_ID: z.string().optional(),
   GOOGLE_CLIENT_SECRET: z.string().optional(),
   GOOGLE_REDIRECT_URI: z.string().url().optional(),
@@ -20,7 +20,16 @@ const schema = z.object({
   CONNECTION_ENCRYPTION_KEY: z.string().optional(),
   BOOTSTRAP_EMAIL: z.string().email().default('owner@example.com'),
   BOOTSTRAP_PASSWORD: z.string().min(8).default('change-me-now'),
-  BOOTSTRAP_STORE_NAME: z.string().default('My Store')
+  BOOTSTRAP_STORE_NAME: z.string().default('My Store'),
+  // Platform admin (you) — separate account from any merchant tenant, seeded once at first boot.
+  BOOTSTRAP_ADMIN_EMAIL: z.string().email().optional(),
+  BOOTSTRAP_ADMIN_PASSWORD: z.string().min(8).optional(),
+  // Stripe: source of truth for plan + revenue.
+  STRIPE_SECRET_KEY: z.string().optional(),
+  STRIPE_WEBHOOK_SECRET: z.string().optional(),
+  STRIPE_PRICE_STARTER: z.string().optional(),
+  STRIPE_PRICE_GROWTH: z.string().optional(),
+  STRIPE_PRICE_PRO: z.string().optional()
 });
 
 export const env = schema.parse(process.env);

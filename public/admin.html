@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>StoreBuddy — Admin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<style>
+:root{
+  --paper:#F0F3F0; --ink:#16211D; --ink-2:#3B463F; --line:#D4D9D2; --white:#FFFFFF;
+  --signal:#1F8A70; --signal-light:#DCEFE8; --signal-dark:#166A55;
+  --alert:#E2572B; --alert-light:#FBE4DA;
+  --warning:#D9A21B; --warning-light:#FBF1D6;
+  --admin-accent:#2A3B7A; --admin-accent-light:#E3E7F5;
+  --radius:10px; --shadow:0 2px 8px rgba(22,33,29,0.06);
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'IBM Plex Sans',sans-serif;background:var(--paper);color:var(--ink);display:flex;min-height:100vh;font-size:14px;line-height:1.5;}
+.mono{font-family:'IBM Plex Mono',monospace;}
+.sidebar{width:220px;background:var(--ink);color:var(--paper);display:flex;flex-direction:column;flex-shrink:0;padding:20px 0;position:sticky;top:0;height:100vh;overflow-y:auto;}
+.brand{display:flex;align-items:center;gap:10px;padding:0 20px 20px 20px;border-bottom:1px solid rgba(240,243,240,.1);margin-bottom:12px;}
+.brand-dot{width:10px;height:10px;border-radius:50%;background:var(--admin-accent);box-shadow:0 0 0 3px rgba(42,59,122,.35);}
+.brand-name{font-family:'IBM Plex Mono',monospace;font-weight:600;font-size:13px;}
+.brand-sub{font-size:11px;color:rgba(240,243,240,.45);margin-top:2px;}
+nav{display:flex;flex-direction:column;gap:2px;padding:0 12px;}
+.nav-item{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:6px;color:rgba(240,243,240,.6);cursor:pointer;font-size:13px;font-weight:500;border:none;background:none;text-align:left;width:100%;font-family:inherit;}
+.nav-item:hover{background:rgba(240,243,240,.06);color:var(--paper);}
+.nav-item.active{background:var(--admin-accent);color:#fff;}
+.sidebar-foot{margin-top:auto;padding:14px 20px 0 20px;border-top:1px solid rgba(240,243,240,.08);font-size:11px;color:rgba(240,243,240,.4);}
+.sidebar-foot a{color:rgba(240,243,240,.6);}
+.main{flex:1;display:flex;flex-direction:column;min-width:0;}
+.page{padding:28px 32px 60px;display:none;max-width:1280px;margin:0 auto;width:100%;}
+.page.active{display:block;}
+h1{font-family:'IBM Plex Mono',monospace;font-size:20px;font-weight:600;margin-bottom:4px;}
+.page-sub{font-size:13px;color:var(--ink-2);margin-bottom:20px;}
+.grid-4{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;}
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+.card{background:var(--white);border:1px solid var(--line);border-radius:var(--radius);padding:18px;box-shadow:var(--shadow);}
+.mb-16{margin-bottom:16px;}
+.stat-label{font-size:12px;color:var(--ink-2);margin-bottom:4px;font-weight:500;}
+.stat-value{font-family:'IBM Plex Mono',monospace;font-size:24px;font-weight:600;}
+.stat-context{font-size:11px;color:#7C867E;margin-top:6px;}
+.section-title{font-size:13px;font-weight:600;margin-bottom:4px;}
+.section-note{font-size:12px;color:var(--ink-2);margin-bottom:14px;}
+table{width:100%;border-collapse:collapse;font-size:13px;}
+th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-2);padding:0 12px 10px 0;border-bottom:2px solid var(--line);}
+td{padding:10px 12px 10px 0;border-bottom:1px solid var(--line);}
+td.num,th.num{text-align:right;}
+tr:last-child td{border-bottom:none;}
+tr.clickable{cursor:pointer;}
+tr.clickable:hover{background:var(--paper);}
+.tag{font-size:11px;padding:3px 9px;border-radius:4px;font-family:'IBM Plex Mono',monospace;font-weight:500;display:inline-block;}
+.tag-green{background:var(--signal-light);color:var(--signal-dark);}
+.tag-red{background:var(--alert-light);color:#A32D2D;}
+.tag-yellow{background:var(--warning-light);color:#8A5A0B;}
+.tag-gray{background:#E6EAE5;color:var(--ink-2);}
+.btn{font-family:inherit;font-size:13px;font-weight:500;padding:9px 16px;border-radius:6px;border:1px solid var(--line);background:var(--white);color:var(--ink);cursor:pointer;}
+.btn-primary{background:var(--admin-accent);color:#fff;border-color:var(--admin-accent);}
+.btn-sm{font-size:12px;padding:6px 12px;}
+input,textarea{width:100%;padding:9px 12px;border:1px solid var(--line);border-radius:6px;font-size:13px;font-family:inherit;}
+label{display:block;font-size:12px;font-weight:500;margin-bottom:5px;color:var(--ink-2);}
+.field{margin-bottom:14px;}
+.form-row{display:flex;gap:12px;flex-wrap:wrap;}
+.form-row .field{flex:1;min-width:180px;}
+.chart-box{position:relative;height:220px;}
+.pricing-row{display:grid;grid-template-columns:2fr 1fr 1fr;gap:10px;align-items:center;margin-bottom:8px;}
+.note{background:#E6EAE5;border-radius:8px;padding:10px 14px;font-size:12px;color:var(--ink-2);line-height:1.6;margin-top:12px;}
+.note b{color:var(--ink);}
+.search-row{display:flex;gap:8px;margin-bottom:14px;}
+.search-row input{max-width:280px;}
+.back-link{font-size:12px;color:var(--admin-accent);cursor:pointer;margin-bottom:12px;display:inline-block;}
+.pagination{display:flex;gap:8px;justify-content:flex-end;margin-top:12px;}
+@media (max-width:900px){.grid-4{grid-template-columns:1fr 1fr;}.grid-2{grid-template-columns:1fr;}.sidebar{position:relative;height:auto;}}
+</style>
+</head>
+<body>
+<aside class="sidebar">
+  <div class="brand">
+    <div class="brand-dot"></div>
+    <div><div class="brand-name">STOREBUDDY</div><div class="brand-sub">Admin</div></div>
+  </div>
+  <nav>
+    <button class="nav-item active" data-page="overview">Overview</button>
+    <button class="nav-item" data-page="tenants">Tenants</button>
+    <button class="nav-item" data-page="whatsapp">WhatsApp</button>
+    <button class="nav-item" data-page="pricing">Pricing</button>
+  </nav>
+  <div class="sidebar-foot mono">Signed in as admin<br><a href="#" id="logoutLink">Sign out</a></div>
+</aside>
+
+<main class="main">
+  <section class="page active" id="page-overview">
+    <h1>Overview</h1>
+    <div class="page-sub">Everything running across all merchants — revenue, AI cost, WhatsApp cost.</div>
+    <div class="grid-4 mb-16" id="overviewStats"></div>
+    <div class="grid-2 mb-16">
+      <div class="card">
+        <div class="section-title">Revenue, last 30 days</div>
+        <div class="section-note">From paid Stripe invoices.</div>
+        <div class="chart-box"><canvas id="chartRevenue"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="section-title">Tenants by plan</div>
+        <div class="section-note">Current plan assignment per Stripe subscription.</div>
+        <div class="chart-box"><canvas id="chartPlans"></canvas></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="section-title">Connection health across all merchants</div>
+      <div class="section-note">How many merchant data-source connections are in each state right now.</div>
+      <div id="connectionHealth"></div>
+    </div>
+  </section>
+
+  <section class="page" id="page-tenants">
+    <h1>Tenants</h1>
+    <div class="page-sub">Every merchant on the platform, their plan, and this month's AI + WhatsApp cost.</div>
+    <div class="search-row">
+      <input id="tenantSearch" type="text" placeholder="Search by name...">
+      <button class="btn btn-sm" id="tenantSearchBtn">Search</button>
+    </div>
+    <div class="card">
+      <div class="table-wrap"><table>
+        <thead><tr><th>Store</th><th>Plan</th><th>Status</th><th class="num">Connections</th><th class="num">AI cost (mo)</th><th class="num">WhatsApp cost (mo)</th><th>Last synced</th></tr></thead>
+        <tbody id="tenantsBody"></tbody>
+      </table></div>
+      <div class="pagination" id="tenantsPagination"></div>
+    </div>
+  </section>
+
+  <section class="page" id="page-tenant-detail">
+    <a class="back-link" data-goto="tenants">← Back to tenants</a>
+    <h1 id="tenantDetailName">Tenant</h1>
+    <div class="page-sub" id="tenantDetailSub"></div>
+    <div class="grid-2 mb-16">
+      <div class="card">
+        <div class="section-title">Connections</div>
+        <div id="tenantConnections"></div>
+      </div>
+      <div class="card">
+        <div class="section-title">Billing</div>
+        <div id="tenantBilling"></div>
+      </div>
+    </div>
+    <div class="grid-2 mb-16">
+      <div class="card">
+        <div class="section-title">Recent AI usage</div>
+        <div class="table-wrap"><table><thead><tr><th>When</th><th>Purpose</th><th class="num">Tokens</th><th class="num">Cost</th></tr></thead><tbody id="tenantAiRows"></tbody></table></div>
+      </div>
+      <div class="card">
+        <div class="section-title">Recent WhatsApp messages</div>
+        <div class="table-wrap"><table><thead><tr><th>When</th><th>Dir</th><th>To</th><th class="num">Cost</th></tr></thead><tbody id="tenantWaRows"></tbody></table></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="page" id="page-whatsapp">
+    <h1>WhatsApp Business API</h1>
+    <div class="page-sub">One shared account you pay for — every merchant's customers message this same number.</div>
+    <div class="card mb-16">
+      <div class="section-title">Credentials</div>
+      <div class="section-note">From your Meta App Dashboard (WhatsApp > API Setup) and Business Settings.</div>
+      <div class="form-row">
+        <div class="field"><label>Business Account ID</label><input id="waBusinessId"></div>
+        <div class="field"><label>Phone Number ID</label><input id="waPhoneId"></div>
+      </div>
+      <div class="form-row">
+        <div class="field"><label>Access Token</label><input id="waToken" type="password" placeholder="System user access token"></div>
+        <div class="field"><label>App Secret</label><input id="waAppSecret" type="password" placeholder="Used to verify inbound webhooks"></div>
+      </div>
+      <div class="form-row">
+        <div class="field"><label>Webhook Verify Token</label><input id="waVerifyToken" placeholder="A string you choose, entered again in Meta's webhook setup"></div>
+        <div class="field"><label>API Version (optional)</label><input id="waApiVersion" placeholder="v21.0"></div>
+      </div>
+      <button class="btn btn-primary" id="waSave">Save WhatsApp settings</button>
+      <div class="note"><b>Webhook URL to enter in Meta:</b> <span id="waWebhookUrl" class="mono"></span></div>
+    </div>
+    <div class="card">
+      <div class="section-title">Send a test message</div>
+      <div class="form-row">
+        <div class="field"><label>To (E.164, no +)</label><input id="waTestTo" placeholder="15551234567"></div>
+        <div class="field"><label>Message</label><input id="waTestMsg" value="Test message from StoreBuddy AI."></div>
+      </div>
+      <button class="btn btn-sm" id="waTestSend">Send test</button>
+      <div id="waTestResult" class="stat-context mt-8" style="margin-top:8px"></div>
+    </div>
+  </section>
+
+  <section class="page" id="page-pricing">
+    <h1>Cost tracking</h1>
+    <div class="page-sub">These rates are estimates you control — keep them matched to your actual OpenAI and WhatsApp billing so the dashboard's cost totals stay accurate.</div>
+    <div class="card mb-16">
+      <div class="section-title">AI token pricing (USD per 1,000 tokens)</div>
+      <div class="section-note">One row per OpenAI model you use. Add a row for each model name exactly as it appears in OPENAI_MODEL.</div>
+      <div id="pricingAiRows"></div>
+      <button class="btn btn-sm" id="pricingAddModel">+ Add model</button>
+    </div>
+    <div class="card mb-16">
+      <div class="section-title">WhatsApp cost per conversation (USD)</div>
+      <div class="section-note">Meta bills per 24-hour conversation, and the rate varies by country and category. Set a blended estimate for your customer base.</div>
+      <div class="field" style="max-width:200px"><input id="pricingWa" type="number" step="0.001"></div>
+    </div>
+    <button class="btn btn-primary" id="pricingSave">Save pricing</button>
+  </section>
+</main>
+<script src="/admin-app.js"></script>
+</body>
+</html>
