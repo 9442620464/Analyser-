@@ -45,7 +45,7 @@ export async function syncWooCommerce(tenantId: string) {
 
 export async function generateAiInsights(tenantId: string) {
   const data = await dashboardForTenant(tenantId);
-  const aiInsights = await analyzeStore({ tenant: data.tenant, connections: data.connections.map(({ encryptedData, ...rest }) => rest), metrics: data.metrics, existingInsights: data.insights });
+  const aiInsights = await analyzeStore(tenantId, { tenant: data.tenant, connections: data.connections.map(({ encryptedData, ...rest }) => rest), metrics: data.metrics, existingInsights: data.insights });
   await Promise.all(aiInsights.map((i) => prisma.insight.upsert({
     where: { tenantId_fingerprint: { tenantId, fingerprint: `${i.priority}:${i.title}` } },
     create: { tenantId, priority: i.priority, title: i.title, body: i.body, source: i.source, metricValue: i.metricValue, actionLabel: i.actionLabel, fingerprint: `${i.priority}:${i.title}` },

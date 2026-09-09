@@ -1,0 +1,32 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>StoreBuddy Admin — Sign in</title><style>
+body{font-family:'IBM Plex Mono',ui-monospace,monospace;background:#16211d;color:#f0f3f0;display:grid;place-items:center;min-height:100vh}
+.card{background:#1e2b25;border:1px solid #3b463f;border-radius:14px;padding:28px;width:min(420px,calc(100% - 32px));box-shadow:0 8px 30px #00000040}
+h1{font-size:18px;letter-spacing:.02em}
+label{display:block;font-size:12px;margin:14px 0 6px;color:#b7c2ba}
+input{width:100%;padding:11px;border:1px solid #3b463f;border-radius:8px;box-sizing:border-box;background:#12211a;color:#f0f3f0;font-family:inherit}
+button{margin-top:18px;width:100%;padding:11px;border:0;border-radius:8px;background:#1f8a70;color:white;font-weight:600;cursor:pointer;font-family:inherit}
+small{color:#8a978f}
+.error{margin-top:12px;color:#ff8a6b;font-size:13px}
+</style></head><body>
+<div class="card">
+  <h1>StoreBuddy — Admin</h1>
+  <small>Platform operator sign-in. Not for merchant accounts.</small>
+  <form id="f">
+    <label>Email</label><input name="email" type="email" autocomplete="username" required>
+    <label>Password</label><input name="password" type="password" autocomplete="current-password" required>
+    <button>Sign in</button>
+    <div class="error" id="e"></div>
+  </form>
+</div>
+<script>
+f.onsubmit=async(e)=>{
+  e.preventDefault();
+  const body=Object.fromEntries(new FormData(f));
+  const r=await fetch('/api/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  const d=await r.json().catch(()=>({}));
+  if(r.ok && d.user?.isPlatformAdmin) location='/admin';
+  else if(r.ok) document.querySelector('#e').textContent="This account doesn't have admin access.";
+  else document.querySelector('#e').textContent=d.error||'Sign in failed';
+};
+</script>
+</body></html>
