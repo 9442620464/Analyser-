@@ -17,19 +17,13 @@ const schema = z.object({
   META_APP_ID: z.string().optional(),
   META_APP_SECRET: z.string().optional(),
   META_REDIRECT_URI: z.string().url().optional(),
+  // This must be the exact same value as CONNECTION_ENCRYPTION_KEY in the storebuddy-admin
+  // deployment: both apps read/write the same encrypted PlatformSetting rows (WhatsApp config)
+  // in the shared database.
   CONNECTION_ENCRYPTION_KEY: z.string().optional(),
   BOOTSTRAP_EMAIL: z.string().email().default('owner@example.com'),
   BOOTSTRAP_PASSWORD: z.string().min(8).default('change-me-now'),
-  BOOTSTRAP_STORE_NAME: z.string().default('My Store'),
-  // Platform admin (you) — separate account from any merchant tenant, seeded once at first boot.
-  BOOTSTRAP_ADMIN_EMAIL: z.string().email().optional(),
-  BOOTSTRAP_ADMIN_PASSWORD: z.string().min(8).optional(),
-  // Stripe: source of truth for plan + revenue.
-  STRIPE_SECRET_KEY: z.string().optional(),
-  STRIPE_WEBHOOK_SECRET: z.string().optional(),
-  STRIPE_PRICE_STARTER: z.string().optional(),
-  STRIPE_PRICE_GROWTH: z.string().optional(),
-  STRIPE_PRICE_PRO: z.string().optional()
+  BOOTSTRAP_STORE_NAME: z.string().default('My Store')
 });
 
 export const env = schema.parse(process.env);
