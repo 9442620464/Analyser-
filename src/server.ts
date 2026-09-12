@@ -11,9 +11,8 @@ import { authRouter } from './routes/auth.js';
 import { dashboardRouter } from './routes/dashboard.js';
 import { connectionsRouter, googleCallback, metaCallback, wooCommerceCallback } from './routes/connections.js';
 import { webhookRouter } from './routes/webhooks.js';
-import { adminRouter } from './routes/admin.js';
 import { prisma } from './lib/prisma.js';
-import { requireAuth, requirePlatformAdmin, tenantId } from './lib/auth.js';
+import { requireAuth, tenantId } from './lib/auth.js';
 import { syncWooCommerce } from './services/dashboard.js';
 
 const app = express();
@@ -40,7 +39,6 @@ app.get('/api/connections/meta/callback', async (req, res) => { try { const r=aw
 // Called directly by the merchant's WooCommerce store (server-to-server), not by their browser.
 app.post('/api/connections/woocommerce/callback', async (req, res) => { try { await wooCommerceCallback(req.body ?? {}); res.status(200).json({ ok: true }); } catch (e) { res.status(400).json({ error: e instanceof Error ? e.message : String(e) }); } });
 app.use('/api/webhooks', webhookRouter);
-app.use('/api/admin', adminRouter);
 
 app.get('/api/me', requireAuth, async (_req, res) => {
   const user = await prisma.user.findUnique({ where: { id: res.locals.auth.userId }, select: { id: true, email: true, name: true } });
@@ -50,8 +48,6 @@ app.get('/api/me', requireAuth, async (_req, res) => {
 
 app.get('/login', (_req, res) => res.sendFile(path.join(process.cwd(), 'public', 'login.html')));
 app.get('/dashboard', requireAuth, (_req, res) => res.sendFile(path.join(process.cwd(), 'public', 'dashboard.html')));
-app.get('/admin/login', (_req, res) => res.sendFile(path.join(process.cwd(), 'public', 'admin-login.html')));
-app.get('/admin', requirePlatformAdmin, (_req, res) => res.sendFile(path.join(process.cwd(), 'public', 'admin.html')));
 app.get('/', (_req, res) => res.redirect('/dashboard'));
 app.use(express.static(path.join(process.cwd(), 'public'), { index: false }));
 

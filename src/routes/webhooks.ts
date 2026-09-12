@@ -1,7 +1,5 @@
 import { Router } from 'express';
-import type Stripe from 'stripe';
 import { verifyWooWebhook } from '../integrations/woocommerce.js';
-import { verifyStripeWebhook, planIdForPrice } from '../integrations/stripe.js';
 import { verifyWhatsAppSignature, verifyWebhookChallenge, parseInboundMessages, sendWhatsAppText } from '../integrations/whatsapp.js';
 import { getWhatsAppConfig, getPricingConfig } from '../lib/platformSettings.js';
 import { dashboardForTenant } from '../services/dashboard.js';
@@ -10,76 +8,11 @@ import { prisma } from '../lib/prisma.js';
 
 export const webhookRouter = Router();
 
-// --- Stripe: source of truth for plan + revenue, per your setup. ---
-async function resolveTenantForCustomer(customerId: string, metadataTenantId?: string | null) {
-  if (metadataTenantId) {
-    const byMeta = await prisma.tenant.findUnique({ where: { id: metadataTenantId } });
-    if (byMeta) return byMeta;
-  }
-  return prisma.tenant.findUnique({ where: { stripeCustomerId: customerId } });
-}
-
-webhookRouter.post('/stripe', async (req, res) => {
-  let event: Stripe.Event;
-  try {
-    const raw = Buffer.isBuffer(req.body) ? req.body : Buffer.from(JSON.stringify(req.body ?? {}));
-    event = verifyStripeWebhook(raw, req.header('Stripe-Signature'));
-  } catch (e) {
-    return res.status(400).json({ error: e instanceof Error ? e.message : 'Invalid Stripe signature' });
-  }
-
-  try {
-    switch (event.type) {
-      case 'checkout.session.completed': {
-        const session = event.data.object as Stripe.Checkout.Session;
-        const tenantId = session.client_reference_id || session.metadata?.tenantId;
-        if (tenantId && session.customer) {
-          await prisma.tenant.update({ where: { id: tenantId }, data: { stripeCustomerId: String(session.customer), stripeSubscriptionId: session.subscription ? String(session.subscription) : undefined } });
-        }
-        break;
-      }
-      case 'customer.subscription.updated':
-      case 'customer.subscription.created':
-      case 'customer.subscription.deleted': {
-        const sub = event.data.object as Stripe.Subscription;
-        const tenant = await resolveTenantForCustomer(String(sub.customer), sub.metadata?.tenantId);
-        if (tenant) {
-          const price = sub.items.data[0]?.price;
-          await prisma.tenant.update({
-            where: { id: tenant.id },
-            data: {
-              stripeSubscriptionId: sub.id,
-              subscriptionStatus: sub.status.toUpperCase() as any,
-              planId: planIdForPrice(price?.id) ?? tenant.planId,
-              currentPeriodEnd: sub.items.data[0] ? new Date(sub.items.data[0].current_period_end * 1000) : tenant.currentPeriodEnd,
-              trialEndsAt: sub.trial_end ? new Date(sub.trial_end * 1000) : null
-            }
-          });
-        }
-        break;
-      }
-      case 'invoice.paid': {
-        const invoice = event.data.object as Stripe.Invoice;
-        const tenant = await resolveTenantForCustomer(String(invoice.customer), (invoice as any).subscription_details?.metadata?.tenantId);
-        if (tenant) {
-          await prisma.invoice.upsert({
-            where: { stripeInvoiceId: invoice.id! },
-            create: { tenantId: tenant.id, stripeInvoiceId: invoice.id!, amountPaidCents: invoice.amount_paid, currency: invoice.currency, status: 'paid', paidAt: new Date((invoice.status_transitions?.paid_at ?? invoice.created) * 1000) },
-            update: { amountPaidCents: invoice.amount_paid, status: 'paid', paidAt: new Date((invoice.status_transitions?.paid_at ?? invoice.created) * 1000) }
-          });
-        }
-        break;
-      }
-    }
-    res.status(200).json({ received: true });
-  } catch (e) {
-    // Stripe retries on non-2xx, so log and still ack rather than risk a retry storm on our own bug.
-    console.error('Stripe webhook handling error:', e);
-    res.status(200).json({ received: true, warning: 'Handler error was logged.' });
-  }
-});
-
 // --- WhatsApp: subscription handshake + inbound message Q&A ---
+// Meta's webhook for the shared Business number is registered against THIS app's public URL,
+// not the admin app -- the admin app only edits the credentials, this app uses them to talk to
+// merchants. Credentials are read from PlatformSetting, a table owned/migrated by the admin repo
+// but shared via the same database.
 webhookRouter.get('/whatsapp', async (req, res) => {
   const config = await getWhatsAppConfig();
   if (!config) return res.status(404).end();

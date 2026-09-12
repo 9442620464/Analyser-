@@ -9,17 +9,4 @@ const tenant = await prisma.tenant.upsert({ where: { slug }, update: { name: env
 await prisma.membership.upsert({ where: { userId_tenantId: { userId: user.id, tenantId: tenant.id } }, update: { role: 'OWNER' }, create: { userId: user.id, tenantId: tenant.id, role: 'OWNER' } });
 await prisma.alertSetting.upsert({ where: { tenantId: tenant.id }, update: {}, create: { tenantId: tenant.id } });
 console.log(`Seeded ${user.email} for ${tenant.name}`);
-
-if (env.BOOTSTRAP_ADMIN_EMAIL && env.BOOTSTRAP_ADMIN_PASSWORD) {
-  const adminPasswordHash = await bcrypt.hash(env.BOOTSTRAP_ADMIN_PASSWORD, 12);
-  const admin = await prisma.user.upsert({
-    where: { email: env.BOOTSTRAP_ADMIN_EMAIL },
-    update: { passwordHash: adminPasswordHash, isPlatformAdmin: true },
-    create: { email: env.BOOTSTRAP_ADMIN_EMAIL, passwordHash: adminPasswordHash, name: 'Platform Admin', isPlatformAdmin: true }
-  });
-  console.log(`Seeded platform admin ${admin.email} — sign in at /admin/login`);
-} else {
-  console.log('No BOOTSTRAP_ADMIN_EMAIL/BOOTSTRAP_ADMIN_PASSWORD set — skipping platform admin seed. Set both in .env to create one.');
-}
-
 await prisma.$disconnect();

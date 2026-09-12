@@ -1,30 +1,35 @@
+# This app shares a database with storebuddy-admin, which owns the postgres service and
+# migrations. Start that repo's docker-compose FIRST (it creates the `storebuddy_net` network
+# and the `postgres` container), then start this one.
+#
+#   cd ../storebuddy-admin && docker compose up -d
+#   cd ../storebuddy-user  && docker compose up -d
 services:
-  postgres:
-    image: postgres:17-alpine
-    restart: unless-stopped
-    environment:
-      POSTGRES_DB: storebuddy
-      POSTGRES_USER: storebuddy
-      POSTGRES_PASSWORD: storebuddy
-    ports:
-      - "5432:5432"
-    volumes:
-      - storebuddy_pg:/var/lib/postgresql/data
-
   app:
     build: .
-    depends_on:
-      - postgres
     environment:
       NODE_ENV: production
       PORT: 3000
       DATABASE_URL: postgresql://storebuddy:storebuddy@postgres:5432/storebuddy?schema=public
       APP_URL: http://localhost:3000
       JWT_SECRET: change-this-in-production
+      CONNECTION_ENCRYPTION_KEY: ${CONNECTION_ENCRYPTION_KEY}
       OPENAI_API_KEY: ${OPENAI_API_KEY}
-      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-5.6}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-5.6-sol}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
+      GOOGLE_REDIRECT_URI: ${GOOGLE_REDIRECT_URI}
+      GOOGLE_ADS_DEVELOPER_TOKEN: ${GOOGLE_ADS_DEVELOPER_TOKEN}
+      GOOGLE_ADS_LOGIN_CUSTOMER_ID: ${GOOGLE_ADS_LOGIN_CUSTOMER_ID}
+      META_APP_ID: ${META_APP_ID}
+      META_APP_SECRET: ${META_APP_SECRET}
+      META_REDIRECT_URI: ${META_REDIRECT_URI}
     ports:
       - "3000:3000"
+    networks:
+      - storebuddy_net
 
-volumes:
-  storebuddy_pg:
+networks:
+  storebuddy_net:
+    external: true
+    name: storebuddy_net

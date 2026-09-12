@@ -1,3 +1,16 @@
+// ============================================================================
+// This schema is a MIRROR, kept in sync by hand with the storebuddy-admin repo,
+// which is the SOURCE OF TRUTH and owns prisma/migrations for this shared database.
+//
+// Do NOT run `prisma migrate dev` or `prisma migrate deploy` from this repo --
+// only `prisma generate` (to produce a typed client for this app's own code).
+// Running migrate here would create a second, conflicting migration history
+// against the same database that storebuddy-admin already manages.
+//
+// If you change this file, make the identical change in storebuddy-admin's
+// prisma/schema.prisma and run the migration from there.
+// ============================================================================
+
 generator client {
   provider = "prisma-client-js"
 }
